@@ -1,7 +1,7 @@
 <?php
 
 /**
- * @version 2.2.3
+ * @version 2.2.7
  * @author Abolfazl Majidi (Afaz)
  * @package neili
  * @license https://opensource.org/licenses/MIT
@@ -376,7 +376,7 @@ class Client
     /**
      * Get chat info
      */
-    public function getChat(int $chatId): Future
+    public function getChat(int|string $chatId): Future
     {
         return $this->request('getChat', ['chat_id' => $chatId]);
     }
