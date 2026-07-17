@@ -1,7 +1,7 @@
 <?php
 
 /**
- * @version 2.2.7
+ * @version 2.2.8
  * @author Abolfazl Majidi (Afaz)
  * @package neili
  * @license https://opensource.org/licenses/MIT
@@ -784,8 +784,14 @@ class Client
 
     /**
      * Set webhook for receiving updates
+     * @param string $url Webhook URL
+     * @param string|null $certificate Path to public key certificate
+     * @param int|null $maxConnections Maximum allowed connections
+     * @param array|null $allowedUpdates List of update types to receive
+     * @param bool|null $dropPendingUpdates Drop pending updates
+     * @param string|null $secretToken Secret token for webhook verification
      */
-    public function setWebhook(string $url, ?string $certificate = null, ?int $maxConnections = null, ?array $allowedUpdates = null, ?bool $dropPendingUpdates = null): Future
+    public function setWebhook(string $url, ?string $certificate = null, ?int $maxConnections = null, ?array $allowedUpdates = null, ?bool $dropPendingUpdates = null, ?string $secretToken = null): Future
     {
         $payload = ['url' => $url];
         if ($certificate !== null)
@@ -796,6 +802,8 @@ class Client
             $payload['allowed_updates'] = $allowedUpdates;
         if ($dropPendingUpdates !== null)
             $payload['drop_pending_updates'] = $dropPendingUpdates;
+        if ($secretToken !== null)
+            $payload['secret_token'] = $secretToken;
         return $this->request('setWebhook', $payload);
     }
 
