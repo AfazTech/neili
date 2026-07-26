@@ -6,13 +6,10 @@ Neili is optimized for both constrained hosting environments and long-running wo
 
 **If this project is helpful to you, you may wish to give it a**:star2: **to support future updates and feature additions!**
 
----
+### AI-Assisted Development
 
-## Donate
-
-<a href="http://www.coffeete.ir/afaz">
-  <img src="http://www.coffeete.ir/images/buttons/lemonchiffon.png" width="260" />
-</a>
+For everything you need to know about the project, including AI-assisted ("vibe") coding, give the neili.txt file to your AI assistant.
+This file provides comprehensive context and documentation to help LLMs understand the project, its architecture, conventions, and codebase.
 
 ---
 
