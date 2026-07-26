@@ -1,0 +1,25 @@
+{
+  "project": "neili",
+  "rootPath": "/home/afaz/Desktop/Project/neili",
+  "tree": true,
+  "files": true,
+  "ignore": [
+    ".git",
+    "vendor",
+    "node_modules",
+    "dist",
+    "build",
+    "storage",
+    ".env",
+    "cai.json",
+    "go.mod",
+    "go.sum",
+    ".cai"
+  ],
+  "include": [
+    "*"
+  ],
+  "gitignore": false,
+  "description": "Neili",
+  "maxSizeMB": 50
+}
