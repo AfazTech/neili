@@ -1,7 +1,7 @@
 <?php
 
 /**
- * @version 2.2.0
+ * @version 2.2.10
  * @author Abolfazl Majidi (Afaz)
  * @package neili
  * @license https://opensource.org/licenses/MIT
@@ -104,10 +104,13 @@ class Poller
         $backoffBase = $settings->getPollerBackoffBase();
         $maxBackoff = $settings->getPollerMaxBackoff();
 
-        // Optionally discard old updates to start fresh
+        // Optionally discard old updates to start fresh.
+        // IMPORTANT: use a short-poll fetch (timeout=0) here, not the long-poll $timeout,
+        // otherwise a real incoming message arriving right at startup could be consumed
+        // by this throwaway request and silently lost.
         if ($discardOldUpdates) {
             try {
-                $latest = $this->client->getUpdates(null,null,$timeout)->await();
+                $latest = $this->client->getUpdates(null, null, 0)->await();
                 $result = $latest['result'] ?? [];
                 if ($result) $this->offset = (int) end($result)['update_id'] + 1;
             } catch (\Throwable $e) {

@@ -1,7 +1,7 @@
 <?php
 
 /**
- * @version 2.2.8
+ * @version 2.2.10
  * @author Abolfazl Majidi (Afaz)
  * @package neili
  * @license https://opensource.org/licenses/MIT
@@ -33,13 +33,27 @@ class Client
     private HttpClient $httpClient;
 
     /**
+     * Extra grace period (seconds) added on top of a getUpdates long-poll
+     * timeout so that the transport does not abort a still-valid long poll.
+     */
+    private const LONG_POLL_GRACE_SECONDS = 10;
+
+    /**
      * Constructor
      * Initializes the HTTP client and stores settings
      */
     public function __construct(Settings $settings)
     {
         $this->settings = $settings;
-        $this->httpClient = HttpClientBuilder::buildDefault();
+
+        // Build the HTTP client with the timeouts from Settings applied.
+        // Without this, amphp/http-client falls back to its default transfer
+        // timeout (10s) and long-poll getUpdates requests get aborted with
+        // "Allowed transfer timeout exceeded".
+        $this->httpClient = (new HttpClientBuilder())
+            ->setTcpConnectTimeout((float) $settings->getConnectionTimeout())
+            ->setTransferTimeout((float) $settings->getTimeout())
+            ->build();
     }
 
     /**
@@ -65,6 +79,21 @@ class Client
     private static function isUrl(string $string): bool
     {
         return filter_var($string, FILTER_VALIDATE_URL) !== false;
+    }
+
+    /**
+     * Resolve the appropriate per-request transfer timeout for the given method.
+     * getUpdates is a long-poll and needs a timeout >= the Telegram "timeout"
+     * payload value, otherwise the transport aborts it before Telegram replies.
+     */
+    private function resolveTransferTimeout(string $method, array $params): float
+    {
+        if ($method === 'getUpdates') {
+            $telegramTimeout = (int) ($params['timeout'] ?? $this->settings->getPollerTimeout());
+            return (float) ($telegramTimeout + self::LONG_POLL_GRACE_SECONDS);
+        }
+
+        return (float) $this->settings->getTimeout();
     }
 
     /**
@@ -124,12 +153,16 @@ class Client
     {
 
         $url = $this->settings->getApiUrl() . $this->settings->getAccessToken() . '/' . $method;
+        $transferTimeout = $this->resolveTransferTimeout($method, $params);
+        $connectTimeout = (float) $this->settings->getConnectionTimeout();
 
-        return async(function () use ($url, $params) {
+        return async(function () use ($url, $params, $transferTimeout, $connectTimeout) {
             try {
                 $request = new Request($url, 'POST');
                 $request->setHeader('Content-Type', 'application/json');
                 $request->setBody(json_encode($params));
+                $request->setTransferTimeout($transferTimeout);
+                $request->setTcpConnectTimeout($connectTimeout);
 
                 $response = $this->httpClient->request($request);
                 $body = $response->getBody()->buffer();
@@ -154,8 +187,10 @@ class Client
     private function requestWithFile(string $method, array $fields, array $files = []): Future
     {
         $url = $this->settings->getApiUrl() . $this->settings->getAccessToken() . '/' . $method;
+        $transferTimeout = $this->resolveTransferTimeout($method, $fields);
+        $connectTimeout = (float) $this->settings->getConnectionTimeout();
 
-        return async(function () use ($url, $fields, $files) {
+        return async(function () use ($url, $fields, $files, $transferTimeout, $connectTimeout) {
             try {
                 $form = new Form();
 
@@ -172,6 +207,8 @@ class Client
 
                 $request = new Request($url, 'POST');
                 $request->setBody($form);
+                $request->setTransferTimeout($transferTimeout);
+                $request->setTcpConnectTimeout($connectTimeout);
 
                 $response = $this->httpClient->request($request);
                 $body = $response->getBody()->buffer();
@@ -189,7 +226,6 @@ class Client
         });
     }
 
-
     /**
      * Get bot info (getMe)
      */
@@ -197,8 +233,6 @@ class Client
     {
         return $this->request('getMe', []);
     }
-
-
 
     /**
      * Send text message
@@ -219,8 +253,6 @@ class Client
             $payload['reply_markup'] = json_encode($keyboard);
         return $this->request('sendMessage', $extraParams ? array_merge($payload, $extraParams) : $payload);
     }
-
-
 
     /**
      * Send photo
@@ -774,6 +806,8 @@ class Client
             $url = "https://api.telegram.org/file/bot" . $this->settings->getAccessToken() . "/" . $filePath;
 
             $request = new Request($url);
+            $request->setTransferTimeout((float) $this->settings->getTimeout());
+            $request->setTcpConnectTimeout((float) $this->settings->getConnectionTimeout());
             $response = yield $this->httpClient->request($request);
             $body = yield $response->getBody()->buffer();
 
@@ -1029,7 +1063,6 @@ class Client
             return 'document';
         }
 
-
         return 'document';
     }
 
@@ -1108,7 +1141,6 @@ class Client
     {
         return $this->request('unpinAllChatMessages', ['chat_id' => $chatId]);
     }
-
 
     /**
      * Leave a chat.
@@ -1650,8 +1682,6 @@ class Client
         return $this->request('getChatBannedUsers', ['chat_id' => $chatId]);
     }
 
-
-
     /**
      * Delete a chat photo.
      */
@@ -1659,8 +1689,6 @@ class Client
     {
         return $this->request('deleteChatPhoto', ['chat_id' => $chatId]);
     }
-
-
 
     /**
      * Get custom emoji stickers.
@@ -1738,9 +1766,6 @@ class Client
         return $this->request('setCustomEmojiStickerSetThumbnail', $extraParams ? array_merge($payload, $extraParams) : $payload);
     }
 
-
-
-
     /**
      * Set the emoji list of a sticker.
      */
@@ -1774,8 +1799,6 @@ class Client
         ]);
     }
 
-
-
     /**
      * Set the result of an interaction with a Web App.
      */
@@ -1791,8 +1814,6 @@ class Client
 
         return $this->request('answerWebAppQuery', $extraParams ? array_merge($payload, $extraParams) : $payload);
     }
-
-
 
     /**
      * Get updates.
@@ -1840,6 +1861,5 @@ class Client
     {
         return $this->request('close', []);
     }
-
 
 }
