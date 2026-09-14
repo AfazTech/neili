@@ -1,7 +1,7 @@
 <?php
 
 /**
- * @version 2.2.10
+ * @version 2.2.11
  * @author Abolfazl Majidi (Afaz)
  * @package neili
  * @license https://opensource.org/licenses/MIT
@@ -40,20 +40,17 @@ class Client
 
     /**
      * Constructor
-     * Initializes the HTTP client and stores settings
+     * Initializes the HTTP client and stores settings.
+     *
+     * NOTE: In amphp/http-client v5 the transfer / connect timeouts are NOT
+     * configurable on HttpClientBuilder; they must be set per-Request.
+     * We therefore keep the builder at its defaults and apply Settings values
+     * on every Request created by request() / requestWithFile().
      */
     public function __construct(Settings $settings)
     {
         $this->settings = $settings;
-
-        // Build the HTTP client with the timeouts from Settings applied.
-        // Without this, amphp/http-client falls back to its default transfer
-        // timeout (10s) and long-poll getUpdates requests get aborted with
-        // "Allowed transfer timeout exceeded".
-        $this->httpClient = (new HttpClientBuilder())
-            ->setTcpConnectTimeout((float) $settings->getConnectionTimeout())
-            ->setTransferTimeout((float) $settings->getTimeout())
-            ->build();
+        $this->httpClient = HttpClientBuilder::buildDefault();
     }
 
     /**
@@ -94,6 +91,15 @@ class Client
         }
 
         return (float) $this->settings->getTimeout();
+    }
+
+    /**
+     * Apply Settings-based timeouts to a Request.
+     */
+    private function applyTimeouts(Request $request, string $method, array $params): void
+    {
+        $request->setTransferTimeout($this->resolveTransferTimeout($method, $params));
+        $request->setTcpConnectTimeout((float) $this->settings->getConnectionTimeout());
     }
 
     /**
@@ -153,16 +159,13 @@ class Client
     {
 
         $url = $this->settings->getApiUrl() . $this->settings->getAccessToken() . '/' . $method;
-        $transferTimeout = $this->resolveTransferTimeout($method, $params);
-        $connectTimeout = (float) $this->settings->getConnectionTimeout();
 
-        return async(function () use ($url, $params, $transferTimeout, $connectTimeout) {
+        return async(function () use ($url, $method, $params) {
             try {
                 $request = new Request($url, 'POST');
                 $request->setHeader('Content-Type', 'application/json');
                 $request->setBody(json_encode($params));
-                $request->setTransferTimeout($transferTimeout);
-                $request->setTcpConnectTimeout($connectTimeout);
+                $this->applyTimeouts($request, $method, $params);
 
                 $response = $this->httpClient->request($request);
                 $body = $response->getBody()->buffer();
@@ -187,10 +190,8 @@ class Client
     private function requestWithFile(string $method, array $fields, array $files = []): Future
     {
         $url = $this->settings->getApiUrl() . $this->settings->getAccessToken() . '/' . $method;
-        $transferTimeout = $this->resolveTransferTimeout($method, $fields);
-        $connectTimeout = (float) $this->settings->getConnectionTimeout();
 
-        return async(function () use ($url, $fields, $files, $transferTimeout, $connectTimeout) {
+        return async(function () use ($url, $method, $fields, $files) {
             try {
                 $form = new Form();
 
@@ -207,8 +208,7 @@ class Client
 
                 $request = new Request($url, 'POST');
                 $request->setBody($form);
-                $request->setTransferTimeout($transferTimeout);
-                $request->setTcpConnectTimeout($connectTimeout);
+                $this->applyTimeouts($request, $method, $fields);
 
                 $response = $this->httpClient->request($request);
                 $body = $response->getBody()->buffer();
