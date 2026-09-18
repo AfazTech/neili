@@ -28,11 +28,13 @@ trait MakesHttpRequests
     }
 
     /**
-     * Resolve the appropriate per-request transfer timeout for the given method.
-     * getUpdates is a long-poll and needs a timeout >= the Telegram "timeout"
-     * payload value, otherwise the transport aborts it before Telegram replies.
+     * Resolve the appropriate per-request timeout for the given method.
+     *
+     * getUpdates is a long-poll: the transport must keep the connection alive
+     * for at least the Telegram "timeout" value plus a small grace period,
+     * otherwise the request is aborted before Telegram replies.
      */
-    private function resolveTransferTimeout(string $method, array $params): float
+    private function resolveRequestTimeout(string $method, array $params): float
     {
         if ($method === 'getUpdates') {
             $telegramTimeout = (int) ($params['timeout'] ?? $this->settings->getPollerTimeout());
@@ -44,10 +46,20 @@ trait MakesHttpRequests
 
     /**
      * Apply Settings-based timeouts to a Request.
+     *
+     * For long-polling (getUpdates), both the transfer timeout and the
+     * inactivity timeout must be extended to "poll timeout + grace".
+     * The inactivity timeout is critical: during a long poll no bytes are
+     * exchanged while Telegram waits for an update, so a short inactivity
+     * timeout would tear the connection down even though the request is
+     * still valid.
      */
     private function applyTimeouts(Request $request, string $method, array $params): void
     {
-        $request->setTransferTimeout($this->resolveTransferTimeout($method, $params));
+        $timeout = $this->resolveRequestTimeout($method, $params);
+
+        $request->setTransferTimeout($timeout);
+        $request->setInactivityTimeout($timeout);
         $request->setTcpConnectTimeout((float) $this->settings->getConnectionTimeout());
     }
 
