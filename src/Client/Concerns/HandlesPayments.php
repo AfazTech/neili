@@ -17,11 +17,36 @@ use Amp\Future;
 trait HandlesPayments
 {
     /**
-     * Send invoice for payments
+     * Send invoice for payments.
+     *
+     * For Telegram Stars subscriptions pass $subscriptionPeriod = 2592000 (30 days)
+     * and use currency "XTR" with an empty $providerToken.
      */
-    public function sendInvoice(int $chatId, string $title, string $description, string $payloadStr, string $providerToken, string $currency, array $prices, ?array $extraParams = null): Future
-    {
-        $payload = ['chat_id' => $chatId, 'title' => $title, 'description' => $description, 'payload' => $payloadStr, 'provider_token' => $providerToken, 'currency' => $currency, 'prices' => json_encode($prices)];
+    public function sendInvoice(
+        int $chatId,
+        string $title,
+        string $description,
+        string $payloadStr,
+        string $providerToken,
+        string $currency,
+        array $prices,
+        ?array $extraParams = null,
+        ?int $subscriptionPeriod = null
+    ): Future {
+        $payload = [
+            'chat_id' => $chatId,
+            'title' => $title,
+            'description' => $description,
+            'payload' => $payloadStr,
+            'provider_token' => $providerToken,
+            'currency' => $currency,
+            'prices' => json_encode($prices),
+        ];
+
+        if ($subscriptionPeriod !== null) {
+            $payload['subscription_period'] = $subscriptionPeriod;
+        }
+
         return $this->request('sendInvoice', $payload + ($extraParams ?? []));
     }
 

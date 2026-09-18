@@ -26,33 +26,66 @@ trait ManagesStickers
     }
 
     /**
-     * Upload PNG sticker file
+     * Upload a sticker file for later use in createNewStickerSet,
+     * addStickerToSet, or replaceStickerInSet.
+     *
+     * @param Media  $sticker       The sticker file (.WEBP, .PNG, .TGS or .WEBM)
+     * @param string $stickerFormat One of "static", "animated", "video"
      */
-    public function uploadStickerFile(int $userId, Media $pngSticker): Future
+    public function uploadStickerFile(int $userId, Media $sticker, string $stickerFormat = 'static'): Future
     {
-        return $this->requestWithFile('uploadStickerFile', ['user_id' => $userId], ['png_sticker' => $pngSticker->filePath]);
+        return $this->requestWithFile(
+            'uploadStickerFile',
+            [
+                'user_id' => $userId,
+                'sticker_format' => $stickerFormat,
+            ],
+            ['sticker' => $sticker->filePath]
+        );
     }
 
     /**
-     * Create new sticker set
+     * Create a new sticker set owned by a user.
+     *
+     * @param array<int, array> $stickers List of 1-50 InputSticker payloads
      */
-    public function createNewStickerSet(int $userId, string $name, string $title, string $emojis, Media $pngSticker, ?array $extraParams = null): Future
-    {
-        $fields = ['user_id' => $userId, 'name' => $name, 'title' => $title, 'emojis' => $emojis];
-        if ($extraParams !== null)
-            $fields = array_merge($fields, $extraParams);
-        return $this->requestWithFile('createNewStickerSet', $fields, ['png_sticker' => $pngSticker->filePath]);
+    public function createNewStickerSet(
+        int $userId,
+        string $name,
+        string $title,
+        array $stickers,
+        ?string $stickerType = null,
+        ?bool $needsRepainting = null
+    ): Future {
+        $payload = [
+            'user_id' => $userId,
+            'name' => $name,
+            'title' => $title,
+            'stickers' => json_encode($stickers),
+        ];
+
+        if ($stickerType !== null) {
+            $payload['sticker_type'] = $stickerType;
+        }
+        if ($needsRepainting !== null) {
+            $payload['needs_repainting'] = $needsRepainting;
+        }
+
+        return $this->request('createNewStickerSet', $payload);
     }
 
     /**
-     * Add sticker to existing set
+     * Add a new sticker to a set created by the bot.
+     *
+     * @param array $sticker A single InputSticker payload
      */
-    public function addStickerToSet(int $userId, string $name, string $emojis, Media $pngSticker, ?array $extraParams = null): Future
+    public function addStickerToSet(int $userId, string $name, array $sticker): Future
     {
-        $fields = ['user_id' => $userId, 'name' => $name, 'emojis' => $emojis];
-        if ($extraParams !== null)
-            $fields = array_merge($fields, $extraParams);
-        return $this->requestWithFile('addStickerToSet', $fields, ['png_sticker' => $pngSticker->filePath]);
+        return $this->request('addStickerToSet', [
+            'user_id' => $userId,
+            'name' => $name,
+            'sticker' => json_encode($sticker),
+        ]);
     }
 
     /**

@@ -233,11 +233,25 @@ trait SendsMedia
     }
 
     /**
-     * Send sticker by ID
+     * Send sticker.
+     *
+     * Supports uploading new .WEBP, .TGS or .WEBM stickers via a Media object,
+     * or passing a file_id / HTTP URL as a string.
+     * Video and animated stickers can't be sent via an HTTP URL.
      */
-    public function sendSticker(int $chatId, string $stickerId, ?array $extraParams = null): Future
+    public function sendSticker(int $chatId, string|Media $sticker, ?array $extraParams = null): Future
     {
-        return $this->request('sendSticker', array_merge(['chat_id' => $chatId, 'sticker' => $stickerId], $extraParams ?? []));
+        $fields = ['chat_id' => $chatId];
+        if ($extraParams !== null) {
+            $fields = array_merge($fields, $extraParams);
+        }
+
+        if ($sticker instanceof Media) {
+            return $this->requestWithFile('sendSticker', $fields, ['sticker' => $sticker->filePath]);
+        }
+
+        $fields['sticker'] = $sticker;
+        return $this->request('sendSticker', $fields);
     }
 
     /**

@@ -13,6 +13,7 @@ declare(strict_types=1);
 namespace Neili\Client\Concerns;
 
 use Amp\Future;
+use InvalidArgumentException;
 
 trait SendsMessages
 {
@@ -406,11 +407,42 @@ trait SendsMessages
     }
 
     /**
-     * Send poll (quiz or survey)
+     * Send poll (quiz or survey).
+     *
+     * Each option may be provided either as a plain string (legacy style) or
+     * as an InputPollOption array (e.g. ['text' => 'Option', 'media' => [...]]).
+     * Plain strings are normalised to ['text' => ...] before being sent.
      */
-    public function sendPoll(int $chatId, string $question, array $options, ?bool $isAnonymous = true, ?string $type = 'regular', ?array $extraParams = null): Future
-    {
-        $payload = ['chat_id' => $chatId, 'question' => $question, 'options' => json_encode($options), 'is_anonymous' => $isAnonymous, 'type' => $type];
+    public function sendPoll(
+        int $chatId,
+        string $question,
+        array $options,
+        ?bool $isAnonymous = true,
+        ?string $type = 'regular',
+        ?array $extraParams = null
+    ): Future {
+        $normalizedOptions = [];
+
+        foreach ($options as $option) {
+            if (is_string($option)) {
+                $normalizedOptions[] = ['text' => $option];
+            } elseif (is_array($option) && isset($option['text'])) {
+                $normalizedOptions[] = $option;
+            } else {
+                throw new InvalidArgumentException(
+                    'Each poll option must be a string or an InputPollOption array containing a "text" key.'
+                );
+            }
+        }
+
+        $payload = [
+            'chat_id' => $chatId,
+            'question' => $question,
+            'options' => json_encode($normalizedOptions),
+            'is_anonymous' => $isAnonymous,
+            'type' => $type,
+        ];
+
         return $this->request('sendPoll', $payload + ($extraParams ?? []));
     }
 
