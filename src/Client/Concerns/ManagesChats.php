@@ -1,7 +1,7 @@
 <?php
 
 /**
- * @version 2.2.11
+ * @version 2.2.12
  * @author Abolfazl Majidi (Afaz)
  * @package neili
  * @license https://opensource.org/licenses/MIT
@@ -140,6 +140,46 @@ trait ManagesChats
     }
 
     /**
+     * Create a subscription invite link for a channel chat.
+     */
+    public function createChatSubscriptionInviteLink(
+        int|string $chatId,
+        int $subscriptionPeriod,
+        int $subscriptionPrice,
+        ?string $name = null,
+        ?array $extraParams = null
+    ): Future {
+        $payload = [
+            'chat_id' => $chatId,
+            'subscription_period' => $subscriptionPeriod,
+            'subscription_price' => $subscriptionPrice,
+        ];
+        if ($name !== null) {
+            $payload['name'] = $name;
+        }
+        return $this->request('createChatSubscriptionInviteLink', $extraParams ? array_merge($payload, $extraParams) : $payload);
+    }
+
+    /**
+     * Edit a subscription invite link created by the bot.
+     */
+    public function editChatSubscriptionInviteLink(
+        int|string $chatId,
+        string $inviteLink,
+        ?string $name = null,
+        ?array $extraParams = null
+    ): Future {
+        $payload = [
+            'chat_id' => $chatId,
+            'invite_link' => $inviteLink,
+        ];
+        if ($name !== null) {
+            $payload['name'] = $name;
+        }
+        return $this->request('editChatSubscriptionInviteLink', $extraParams ? array_merge($payload, $extraParams) : $payload);
+    }
+
+    /**
      * Revoke an invite link
      */
     public function revokeChatInviteLink(int $chatId, string $inviteLink): Future
@@ -148,7 +188,7 @@ trait ManagesChats
     }
 
     /**
-     * Set custom emoji sticker set thumbnail for a chat.
+     * Set group sticker set for a supergroup.
      */
     public function setChatStickerSet(int $chatId, string $stickerSetName): Future
     {
@@ -159,11 +199,22 @@ trait ManagesChats
     }
 
     /**
-     * Delete custom emoji sticker set from a chat.
+     * Delete group sticker set from a supergroup.
      */
     public function deleteChatStickerSet(int $chatId): Future
     {
         return $this->request('deleteChatStickerSet', ['chat_id' => $chatId]);
+    }
+
+    /**
+     * Get the last messages from the personal chat of a given user.
+     */
+    public function getUserPersonalChatMessages(int $userId, int $limit): Future
+    {
+        return $this->request('getUserPersonalChatMessages', [
+            'user_id' => $userId,
+            'limit' => $limit,
+        ]);
     }
 
     /**

@@ -1,7 +1,7 @@
 <?php
 
 /**
- * @version 2.2.11
+ * @version 2.2.12
  * @author Abolfazl Majidi (Afaz)
  * @package neili
  * @license https://opensource.org/licenses/MIT
@@ -15,10 +15,15 @@ namespace Neili;
 use Amp\Http\Client\HttpClient;
 use Amp\Http\Client\HttpClientBuilder;
 use Amp\Future;
+use Neili\Client\Concerns\HandlesBusiness;
 use Neili\Client\Concerns\HandlesGames;
+use Neili\Client\Concerns\HandlesGifts;
 use Neili\Client\Concerns\HandlesInlineQueries;
 use Neili\Client\Concerns\HandlesPayments;
+use Neili\Client\Concerns\HandlesStories;
+use Neili\Client\Concerns\HandlesSuggestedPosts;
 use Neili\Client\Concerns\HandlesUpdates;
+use Neili\Client\Concerns\HandlesVerification;
 use Neili\Client\Concerns\HandlesWebhooks;
 use Neili\Client\Concerns\MakesHttpRequests;
 use Neili\Client\Concerns\ManagesBotProfile;
@@ -26,6 +31,7 @@ use Neili\Client\Concerns\ManagesChatMembers;
 use Neili\Client\Concerns\ManagesChats;
 use Neili\Client\Concerns\ManagesFiles;
 use Neili\Client\Concerns\ManagesForumTopics;
+use Neili\Client\Concerns\ManagesManagedBots;
 use Neili\Client\Concerns\ManagesStickers;
 use Neili\Client\Concerns\SendsMedia;
 use Neili\Client\Concerns\SendsMessages;
@@ -46,6 +52,12 @@ class Client
     use HandlesUpdates;
     use HandlesWebhooks;
     use ManagesFiles;
+    use HandlesStories;
+    use HandlesBusiness;
+    use HandlesGifts;
+    use HandlesVerification;
+    use ManagesManagedBots;
+    use HandlesSuggestedPosts;
 
     /**
      * Telegram bot settings (token, API URL, etc)

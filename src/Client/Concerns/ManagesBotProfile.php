@@ -1,7 +1,7 @@
 <?php
 
 /**
- * @version 2.2.11
+ * @version 2.2.12
  * @author Abolfazl Majidi (Afaz)
  * @package neili
  * @license https://opensource.org/licenses/MIT
@@ -248,25 +248,44 @@ trait ManagesBotProfile
     }
 
     /**
-     * Delete the bot's profile photo.
+     * Remove the profile photo of the bot.
      */
-    public function deleteMyProfilePhoto(?string $photoId = null): Future
+    public function removeMyProfilePhoto(): Future
     {
-        $payload = [];
-
-        if ($photoId !== null) {
-            $payload['photo_id'] = $photoId;
-        }
-
-        return $this->request('deleteMyProfilePhoto', $payload);
+        return $this->request('removeMyProfilePhoto', []);
     }
 
     /**
-     * Get the current list of the bot's profile photos.
+     * Change the emoji status for a given user.
      */
-    public function getMyProfilePhotos(): Future
+    public function setUserEmojiStatus(
+        int $userId,
+        ?string $emojiStatusCustomEmojiId = null,
+        ?int $emojiStatusExpirationDate = null
+    ): Future {
+        $payload = ['user_id' => $userId];
+        if ($emojiStatusCustomEmojiId !== null) {
+            $payload['emoji_status_custom_emoji_id'] = $emojiStatusCustomEmojiId;
+        }
+        if ($emojiStatusExpirationDate !== null) {
+            $payload['emoji_status_expiration_date'] = $emojiStatusExpirationDate;
+        }
+        return $this->request('setUserEmojiStatus', $payload);
+    }
+
+    /**
+     * Get the list of profile audios for a user.
+     */
+    public function getUserProfileAudios(int $userId, ?int $offset = null, ?int $limit = null): Future
     {
-        return $this->request('getMyProfilePhotos', []);
+        $payload = ['user_id' => $userId];
+        if ($offset !== null) {
+            $payload['offset'] = $offset;
+        }
+        if ($limit !== null) {
+            $payload['limit'] = $limit;
+        }
+        return $this->request('getUserProfileAudios', $payload);
     }
 
     /**

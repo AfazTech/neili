@@ -1,7 +1,7 @@
 <?php
 
 /**
- * @version 2.2.11
+ * @version 2.2.12
  * @author Abolfazl Majidi (Afaz)
  * @package neili
  * @license https://opensource.org/licenses/MIT
@@ -37,6 +37,84 @@ trait SendsMedia
 
         $fields['photo'] = $photo;
         return $this->request('sendPhoto', $fields);
+    }
+
+    /**
+     * Send live photo (static photo + short video).
+     */
+    public function sendLivePhoto(
+        int $chatId,
+        string|Media $livePhoto,
+        string|Media $photo,
+        ?string $caption = null,
+        ?array $keyboard = null,
+        ?array $extraParams = null
+    ): Future {
+        $fields = ['chat_id' => $chatId];
+        if ($caption !== null) {
+            $fields['caption'] = $caption;
+        }
+        if ($keyboard !== null) {
+            $fields['reply_markup'] = json_encode($keyboard);
+        }
+        if ($extraParams !== null) {
+            $fields = array_merge($fields, $extraParams);
+        }
+
+        $files = [];
+        if ($livePhoto instanceof Media) {
+            $files['live_photo'] = $livePhoto->filePath;
+        } else {
+            $fields['live_photo'] = $livePhoto;
+        }
+        if ($photo instanceof Media) {
+            $files['photo'] = $photo->filePath;
+        } else {
+            $fields['photo'] = $photo;
+        }
+
+        return $files
+            ? $this->requestWithFile('sendLivePhoto', $fields, $files)
+            : $this->request('sendLivePhoto', $fields);
+    }
+
+    /**
+     * Send paid media.
+     *
+     * @param array $media Array of InputPaidMedia
+     */
+    public function sendPaidMedia(
+        int|string $chatId,
+        int $starCount,
+        array $media,
+        ?string $caption = null,
+        ?string $payload = null,
+        ?bool $disableNotification = null,
+        ?bool $protectContent = null,
+        ?array $extraParams = null
+    ): Future {
+        $fields = [
+            'chat_id' => $chatId,
+            'star_count' => $starCount,
+            'media' => json_encode($media),
+        ];
+        if ($caption !== null) {
+            $fields['caption'] = $caption;
+        }
+        if ($payload !== null) {
+            $fields['payload'] = $payload;
+        }
+        if ($disableNotification !== null) {
+            $fields['disable_notification'] = $disableNotification;
+        }
+        if ($protectContent !== null) {
+            $fields['protect_content'] = $protectContent;
+        }
+        if ($extraParams !== null) {
+            $fields = array_merge($fields, $extraParams);
+        }
+
+        return $this->request('sendPaidMedia', $fields);
     }
 
     /**

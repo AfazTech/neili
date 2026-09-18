@@ -1,7 +1,7 @@
 <?php
 
 /**
- * @version 2.2.11
+ * @version 2.2.12
  * @author Abolfazl Majidi (Afaz)
  * @package neili
  * @license https://opensource.org/licenses/MIT
@@ -27,20 +27,28 @@ trait ManagesChatMembers
     /**
      * Get chat administrators
      */
-    public function getChatAdministrators(int $chatId): Future
+    public function getChatAdministrators(int $chatId, ?bool $returnBots = null): Future
     {
-        return $this->request('getChatAdministrators', ['chat_id' => $chatId]);
+        $payload = ['chat_id' => $chatId];
+        if ($returnBots !== null) {
+            $payload['return_bots'] = $returnBots;
+        }
+        return $this->request('getChatAdministrators', $payload);
     }
 
     /**
-     * Kick user from chat
+     * Ban a user in a group, supergroup or channel.
      */
-    public function kickChatMember(int $chatId, int $userId, ?int $untilDate = null, ?array $extraParams = null): Future
+    public function banChatMember(int $chatId, int $userId, ?int $untilDate = null, ?bool $revokeMessages = null, ?array $extraParams = null): Future
     {
         $payload = ['chat_id' => $chatId, 'user_id' => $userId];
-        if ($untilDate !== null)
+        if ($untilDate !== null) {
             $payload['until_date'] = $untilDate;
-        return $this->request('kickChatMember', $payload + ($extraParams ?? []));
+        }
+        if ($revokeMessages !== null) {
+            $payload['revoke_messages'] = $revokeMessages;
+        }
+        return $this->request('banChatMember', $payload + ($extraParams ?? []));
     }
 
     /**
@@ -88,6 +96,24 @@ trait ManagesChatMembers
     }
 
     /**
+     * Set a tag for a regular member in a group or a supergroup.
+     */
+    public function setChatMemberTag(
+        int|string $chatId,
+        int $userId,
+        ?string $tag = null
+    ): Future {
+        $payload = [
+            'chat_id' => $chatId,
+            'user_id' => $userId,
+        ];
+        if ($tag !== null) {
+            $payload['tag'] = $tag;
+        }
+        return $this->request('setChatMemberTag', $payload);
+    }
+
+    /**
      * Ban a channel chat in a supergroup or a channel.
      */
     public function banChatSenderChat(
@@ -120,14 +146,6 @@ trait ManagesChatMembers
     }
 
     /**
-     * Get the list of banned users in a supergroup or channel.
-     */
-    public function getChatBannedUsers(int $chatId): Future
-    {
-        return $this->request('getChatBannedUsers', ['chat_id' => $chatId]);
-    }
-
-    /**
      * Approve a chat join request.
      */
     public function approveChatJoinRequest(int $chatId, int $userId): Future
@@ -146,6 +164,39 @@ trait ManagesChatMembers
         return $this->request('declineChatJoinRequest', [
             'chat_id' => $chatId,
             'user_id' => $userId
+        ]);
+    }
+
+    /**
+     * Process a received chat join request query.
+     */
+    public function answerChatJoinRequestQuery(string $chatJoinRequestQueryId, string $result): Future
+    {
+        return $this->request('answerChatJoinRequestQuery', [
+            'chat_join_request_query_id' => $chatJoinRequestQueryId,
+            'result' => $result,
+        ]);
+    }
+
+    /**
+     * Process a received chat join request query by showing a Mini App.
+     */
+    public function sendChatJoinRequestWebApp(string $chatJoinRequestQueryId, string $webAppUrl): Future
+    {
+        return $this->request('sendChatJoinRequestWebApp', [
+            'chat_join_request_query_id' => $chatJoinRequestQueryId,
+            'web_app_url' => $webAppUrl,
+        ]);
+    }
+
+    /**
+     * Get the list of boosts added to a chat by a user.
+     */
+    public function getUserChatBoosts(int|string $chatId, int $userId): Future
+    {
+        return $this->request('getUserChatBoosts', [
+            'chat_id' => $chatId,
+            'user_id' => $userId,
         ]);
     }
 

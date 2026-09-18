@@ -1,7 +1,7 @@
 <?php
 
 /**
- * @version 2.2.11
+ * @version 2.2.12
  * @author Abolfazl Majidi (Afaz)
  * @package neili
  * @license https://opensource.org/licenses/MIT
@@ -77,6 +77,50 @@ trait SendsMessages
     }
 
     /**
+     * Edit animation, audio, document, live photo, photo, or video messages.
+     *
+     * @param array $media InputMedia payload
+     */
+    public function editMessageMedia(
+        int $chatId,
+        int $messageId,
+        array $media,
+        ?array $keyboard = null,
+        ?array $extraParams = null
+    ): Future {
+        $payload = [
+            'chat_id' => $chatId,
+            'message_id' => $messageId,
+            'media' => json_encode($media),
+        ];
+
+        if ($keyboard !== null) {
+            $payload['reply_markup'] = json_encode($keyboard);
+        }
+
+        return $this->request('editMessageMedia', $extraParams ? array_merge($payload, $extraParams) : $payload);
+    }
+
+    /**
+     * Edit live location messages until live_period expires.
+     */
+    public function editMessageLiveLocation(
+        int $chatId,
+        int $messageId,
+        float $latitude,
+        float $longitude,
+        ?array $extraParams = null
+    ): Future {
+        $payload = [
+            'chat_id' => $chatId,
+            'message_id' => $messageId,
+            'latitude' => $latitude,
+            'longitude' => $longitude,
+        ];
+        return $this->request('editMessageLiveLocation', $extraParams ? array_merge($payload, $extraParams) : $payload);
+    }
+
+    /**
      * Edit only the reply markup of a message.
      */
     public function editMessageReplyMarkup(
@@ -106,12 +150,52 @@ trait SendsMessages
     }
 
     /**
+     * Delete multiple messages simultaneously.
+     *
+     * @param array<int> $messageIds
+     */
+    public function deleteMessages(int $chatId, array $messageIds): Future
+    {
+        return $this->request('deleteMessages', [
+            'chat_id' => $chatId,
+            'message_ids' => json_encode($messageIds),
+        ]);
+    }
+
+    /**
      * Forward message from one chat to another
      */
     public function forwardMessage(int $chatId, int $fromChatId, int $messageId, ?array $extraParams = null): Future
     {
         $payload = ['chat_id' => $chatId, 'from_chat_id' => $fromChatId, 'message_id' => $messageId];
         return $this->request('forwardMessage', $extraParams ? array_merge($payload, $extraParams) : $payload);
+    }
+
+    /**
+     * Forward multiple messages of any kind.
+     *
+     * @param array<int> $messageIds
+     */
+    public function forwardMessages(
+        int $chatId,
+        int $fromChatId,
+        array $messageIds,
+        ?bool $disableNotification = null,
+        ?bool $protectContent = null,
+        ?array $extraParams = null
+    ): Future {
+        $payload = [
+            'chat_id' => $chatId,
+            'from_chat_id' => $fromChatId,
+            'message_ids' => json_encode($messageIds),
+        ];
+        if ($disableNotification !== null) {
+            $payload['disable_notification'] = $disableNotification;
+        }
+        if ($protectContent !== null) {
+            $payload['protect_content'] = $protectContent;
+        }
+        return $this->request('forwardMessages', $extraParams ? array_merge($payload, $extraParams) : $payload);
     }
 
     /**
@@ -144,6 +228,37 @@ trait SendsMessages
     }
 
     /**
+     * Copy multiple messages of any kind.
+     *
+     * @param array<int> $messageIds
+     */
+    public function copyMessages(
+        int $chatId,
+        int $fromChatId,
+        array $messageIds,
+        ?bool $disableNotification = null,
+        ?bool $protectContent = null,
+        ?bool $removeCaption = null,
+        ?array $extraParams = null
+    ): Future {
+        $payload = [
+            'chat_id' => $chatId,
+            'from_chat_id' => $fromChatId,
+            'message_ids' => json_encode($messageIds),
+        ];
+        if ($disableNotification !== null) {
+            $payload['disable_notification'] = $disableNotification;
+        }
+        if ($protectContent !== null) {
+            $payload['protect_content'] = $protectContent;
+        }
+        if ($removeCaption !== null) {
+            $payload['remove_caption'] = $removeCaption;
+        }
+        return $this->request('copyMessages', $extraParams ? array_merge($payload, $extraParams) : $payload);
+    }
+
+    /**
      * Stop updating a live location message before live_period expires.
      */
     public function stopMessageLiveLocation(
@@ -162,6 +277,71 @@ trait SendsMessages
         }
 
         return $this->request('stopMessageLiveLocation', $extraParams ? array_merge($payload, $extraParams) : $payload);
+    }
+
+    /**
+     * Change the chosen reactions on a message.
+     *
+     * @param array $reaction Array of ReactionType
+     */
+    public function setMessageReaction(
+        int|string $chatId,
+        int $messageId,
+        ?array $reaction = null,
+        ?bool $isBig = null,
+        ?array $extraParams = null
+    ): Future {
+        $payload = [
+            'chat_id' => $chatId,
+            'message_id' => $messageId,
+        ];
+        if ($reaction !== null) {
+            $payload['reaction'] = json_encode($reaction);
+        }
+        if ($isBig !== null) {
+            $payload['is_big'] = $isBig;
+        }
+        return $this->request('setMessageReaction', $extraParams ? array_merge($payload, $extraParams) : $payload);
+    }
+
+    /**
+     * Remove a reaction from a message in a group or supergroup chat.
+     */
+    public function deleteMessageReaction(
+        int|string $chatId,
+        int $messageId,
+        ?int $userId = null,
+        ?int $actorChatId = null
+    ): Future {
+        $payload = [
+            'chat_id' => $chatId,
+            'message_id' => $messageId,
+        ];
+        if ($userId !== null) {
+            $payload['user_id'] = $userId;
+        }
+        if ($actorChatId !== null) {
+            $payload['actor_chat_id'] = $actorChatId;
+        }
+        return $this->request('deleteMessageReaction', $payload);
+    }
+
+    /**
+     * Remove up to 10000 recent reactions in a group or supergroup chat.
+     */
+    public function deleteAllMessageReactions(
+        int|string $chatId,
+        ?int $userId = null,
+        ?int $actorChatId = null
+    ): Future {
+        $payload = ['chat_id' => $chatId];
+        if ($userId !== null) {
+            $payload['user_id'] = $userId;
+        }
+        if ($actorChatId !== null) {
+            $payload['actor_chat_id'] = $actorChatId;
+        }
+        return $this->request('deleteAllMessageReactions', $payload);
     }
 
     /**

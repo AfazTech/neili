@@ -1,7 +1,7 @@
 <?php
 
 /**
- * @version 2.2.11
+ * @version 2.2.12
  * @author Abolfazl Majidi (Afaz)
  * @package neili
  * @license https://opensource.org/licenses/MIT
@@ -110,6 +110,14 @@ trait ManagesForumTopics
             'chat_id' => $chatId,
             'message_thread_id' => $messageThreadId
         ]);
+    }
+
+    /**
+     * Clear the list of pinned messages in a General forum topic.
+     */
+    public function unpinAllGeneralForumTopicMessages(int $chatId): Future
+    {
+        return $this->request('unpinAllGeneralForumTopicMessages', ['chat_id' => $chatId]);
     }
 
     /**

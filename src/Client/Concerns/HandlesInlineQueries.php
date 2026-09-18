@@ -1,7 +1,7 @@
 <?php
 
 /**
- * @version 2.2.11
+ * @version 2.2.12
  * @author Abolfazl Majidi (Afaz)
  * @package neili
  * @license https://opensource.org/licenses/MIT
@@ -56,5 +56,60 @@ trait HandlesInlineQueries
         ];
 
         return $this->request('answerWebAppQuery', $extraParams ? array_merge($payload, $extraParams) : $payload);
+    }
+
+    /**
+     * Reply to a received guest message.
+     */
+    public function answerGuestQuery(string $guestQueryId, array $result): Future
+    {
+        return $this->request('answerGuestQuery', [
+            'guest_query_id' => $guestQueryId,
+            'result' => json_encode($result),
+        ]);
+    }
+
+    /**
+     * Store a message that can be sent by a user of a Mini App.
+     */
+    public function savePreparedInlineMessage(
+        int $userId,
+        array $result,
+        ?bool $allowUserChats = null,
+        ?bool $allowBotChats = null,
+        ?bool $allowGroupChats = null,
+        ?bool $allowChannelChats = null,
+        ?array $extraParams = null
+    ): Future {
+        $payload = [
+            'user_id' => $userId,
+            'result' => json_encode($result),
+        ];
+        if ($allowUserChats !== null) {
+            $payload['allow_user_chats'] = $allowUserChats;
+        }
+        if ($allowBotChats !== null) {
+            $payload['allow_bot_chats'] = $allowBotChats;
+        }
+        if ($allowGroupChats !== null) {
+            $payload['allow_group_chats'] = $allowGroupChats;
+        }
+        if ($allowChannelChats !== null) {
+            $payload['allow_channel_chats'] = $allowChannelChats;
+        }
+        return $this->request('savePreparedInlineMessage', $extraParams ? array_merge($payload, $extraParams) : $payload);
+    }
+
+    /**
+     * Store a keyboard button that can be used by a user within a Mini App.
+     *
+     * @param array $button KeyboardButton payload; must be of type request_users, request_chat, or request_managed_bot
+     */
+    public function savePreparedKeyboardButton(int $userId, array $button): Future
+    {
+        return $this->request('savePreparedKeyboardButton', [
+            'user_id' => $userId,
+            'button' => json_encode($button),
+        ]);
     }
 }

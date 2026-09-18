@@ -1,7 +1,7 @@
 <?php
 
 /**
- * @version 2.2.11
+ * @version 2.2.12
  * @author Abolfazl Majidi (Afaz)
  * @package neili
  * @license https://opensource.org/licenses/MIT
@@ -72,11 +72,22 @@ trait ManagesStickers
     }
 
     /**
-     * Set thumbnail of a sticker set
+     * Replace an existing sticker in a sticker set with a new one.
+     *
+     * @param array $sticker InputSticker payload
      */
-    public function setStickerSetThumb(string $name, Media $thumb): Future
-    {
-        return $this->requestWithFile('setStickerSetThumb', ['name' => $name], ['thumb' => $thumb->filePath]);
+    public function replaceStickerInSet(
+        int $userId,
+        string $name,
+        string $oldSticker,
+        array $sticker
+    ): Future {
+        return $this->request('replaceStickerInSet', [
+            'user_id' => $userId,
+            'name' => $name,
+            'old_sticker' => $oldSticker,
+            'sticker' => json_encode($sticker),
+        ]);
     }
 
     /**
