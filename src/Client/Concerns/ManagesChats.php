@@ -1,7 +1,7 @@
 <?php
 
 /**
- * @version 2.2.12
+ * @version 2.2.13
  * @author Abolfazl Majidi (Afaz)
  * @package neili
  * @license https://opensource.org/licenses/MIT
@@ -13,6 +13,7 @@ declare(strict_types=1);
 namespace Neili\Client\Concerns;
 
 use Amp\Future;
+use Neili\Media;
 
 trait ManagesChats
 {
@@ -49,11 +50,16 @@ trait ManagesChats
     }
 
     /**
-     * Unpin pinned message
+     * Unpin a pinned message. If $messageId is omitted, the most recent
+     * pinned message will be unpinned.
      */
-    public function unpinChatMessage(int $chatId): Future
+    public function unpinChatMessage(int|string $chatId, ?int $messageId = null): Future
     {
-        return $this->request('unpinChatMessage', ['chat_id' => $chatId]);
+        $payload = ['chat_id' => $chatId];
+        if ($messageId !== null) {
+            $payload['message_id'] = $messageId;
+        }
+        return $this->request('unpinChatMessage', $payload);
     }
 
     /**
@@ -81,11 +87,12 @@ trait ManagesChats
     }
 
     /**
-     * Set chat photo
+     * Set chat photo. The Telegram API requires an InputFile for this method,
+     * so a local file (wrapped in a Media object) must be supplied.
      */
-    public function setChatPhoto(int $chatId, string $photoUrl): Future
+    public function setChatPhoto(int|string $chatId, Media $photo): Future
     {
-        return $this->request('setChatPhoto', ['chat_id' => $chatId, 'photo' => $photoUrl]);
+        return $this->requestWithFile('setChatPhoto', ['chat_id' => $chatId], ['photo' => $photo->filePath]);
     }
 
     /**

@@ -1,7 +1,7 @@
 <?php
 
 /**
- * @version 2.2.12
+ * @version 2.2.13
  * @author Abolfazl Majidi (Afaz)
  * @package neili
  * @license https://opensource.org/licenses/MIT
@@ -16,10 +16,13 @@ use Amp\Http\Client\HttpClient;
 use Amp\Http\Client\HttpClientBuilder;
 use Amp\Future;
 use Neili\Client\Concerns\HandlesBusiness;
+use Neili\Client\Concerns\HandlesEphemeralMessages;
 use Neili\Client\Concerns\HandlesGames;
 use Neili\Client\Concerns\HandlesGifts;
 use Neili\Client\Concerns\HandlesInlineQueries;
+use Neili\Client\Concerns\HandlesPassport;
 use Neili\Client\Concerns\HandlesPayments;
+use Neili\Client\Concerns\HandlesRichMessages;
 use Neili\Client\Concerns\HandlesStories;
 use Neili\Client\Concerns\HandlesSuggestedPosts;
 use Neili\Client\Concerns\HandlesUpdates;
@@ -58,6 +61,9 @@ class Client
     use HandlesVerification;
     use ManagesManagedBots;
     use HandlesSuggestedPosts;
+    use HandlesEphemeralMessages;
+    use HandlesRichMessages;
+    use HandlesPassport;
 
     /**
      * Telegram bot settings (token, API URL, etc)

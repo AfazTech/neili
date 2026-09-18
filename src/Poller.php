@@ -1,7 +1,7 @@
 <?php
 
 /**
- * @version 2.2.10
+ * @version 2.2.13
  * @author Abolfazl Majidi (Afaz)
  * @package neili
  * @license https://opensource.org/licenses/MIT
@@ -75,8 +75,13 @@ class Poller
     public function onChatJoinRequest(callable $callback): void { $this->handlers['chat_join_request'][] = $callback; }
     public function onBusinessMessage(callable $callback): void { $this->handlers['business_message'][] = $callback; }
     public function onEditedBusinessMessage(callable $callback): void { $this->handlers['edited_business_message'][] = $callback; }
-    public function onDeletedBusinessMessage(callable $callback): void { $this->handlers['deleted_business_message'][] = $callback; }
+    public function onDeletedBusinessMessage(callable $callback): void { $this->handlers['deleted_business_messages'][] = $callback; }
     public function onBusinessConnection(callable $callback): void { $this->handlers['business_connection'][] = $callback; }
+    public function onGuestMessage(callable $callback): void { $this->handlers['guest_message'][] = $callback; }
+    public function onPurchasedPaidMedia(callable $callback): void { $this->handlers['purchased_paid_media'][] = $callback; }
+    public function onManagedBot(callable $callback): void { $this->handlers['managed_bot'][] = $callback; }
+    public function onSubscription(callable $callback): void { $this->handlers['subscription'][] = $callback; }
+    public function onStoppedMessageGeneration(callable $callback): void { $this->handlers['stopped_message_generation'][] = $callback; }
 
     // Determine the type of incoming update based on registered handlers
     private function detectType(array $update): string

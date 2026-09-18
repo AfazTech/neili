@@ -1,7 +1,7 @@
 <?php
 
 /**
- * @version 2.2.12
+ * @version 2.2.13
  * @author Abolfazl Majidi (Afaz)
  * @package neili
  * @license https://opensource.org/licenses/MIT
@@ -40,11 +40,25 @@ trait SendsMessages
     }
 
     /**
-     * Edit existing message text
+     * Edit existing message text. Set $inlineMessageId to edit an inline
+     * message instead of a chat message (in that case $chatId and
+     * $messageId may be null).
      */
-    public function editMessageText(int $chatId, int $messageId, string $text, ?array $keyboard = null, ?array $extraParams = null): Future
-    {
-        $payload = ['chat_id' => $chatId, 'message_id' => $messageId, 'text' => $text];
+    public function editMessageText(
+        int|string|null $chatId,
+        ?int $messageId,
+        string $text,
+        ?array $keyboard = null,
+        ?array $extraParams = null,
+        ?string $inlineMessageId = null
+    ): Future {
+        $payload = ['text' => $text];
+        if ($inlineMessageId !== null) {
+            $payload['inline_message_id'] = $inlineMessageId;
+        } else {
+            $payload['chat_id'] = $chatId;
+            $payload['message_id'] = $messageId;
+        }
         if ($keyboard !== null)
             $payload['reply_markup'] = json_encode($keyboard);
         return $this->request('editMessageText', $extraParams ? array_merge($payload, $extraParams) : $payload);
@@ -54,16 +68,21 @@ trait SendsMessages
      * Edit the caption of a message.
      */
     public function editMessageCaption(
-        int $chatId,
-        int $messageId,
+        int|string|null $chatId,
+        ?int $messageId,
         ?string $caption = null,
         ?array $keyboard = null,
-        ?array $extraParams = null
+        ?array $extraParams = null,
+        ?string $inlineMessageId = null
     ): Future {
-        $payload = [
-            'chat_id' => $chatId,
-            'message_id' => $messageId
-        ];
+        $payload = [];
+
+        if ($inlineMessageId !== null) {
+            $payload['inline_message_id'] = $inlineMessageId;
+        } else {
+            $payload['chat_id'] = $chatId;
+            $payload['message_id'] = $messageId;
+        }
 
         if ($caption !== null) {
             $payload['caption'] = $caption;
@@ -82,17 +101,23 @@ trait SendsMessages
      * @param array $media InputMedia payload
      */
     public function editMessageMedia(
-        int $chatId,
-        int $messageId,
+        int|string|null $chatId,
+        ?int $messageId,
         array $media,
         ?array $keyboard = null,
-        ?array $extraParams = null
+        ?array $extraParams = null,
+        ?string $inlineMessageId = null
     ): Future {
         $payload = [
-            'chat_id' => $chatId,
-            'message_id' => $messageId,
             'media' => json_encode($media),
         ];
+
+        if ($inlineMessageId !== null) {
+            $payload['inline_message_id'] = $inlineMessageId;
+        } else {
+            $payload['chat_id'] = $chatId;
+            $payload['message_id'] = $messageId;
+        }
 
         if ($keyboard !== null) {
             $payload['reply_markup'] = json_encode($keyboard);
@@ -105,18 +130,25 @@ trait SendsMessages
      * Edit live location messages until live_period expires.
      */
     public function editMessageLiveLocation(
-        int $chatId,
-        int $messageId,
+        int|string|null $chatId,
+        ?int $messageId,
         float $latitude,
         float $longitude,
-        ?array $extraParams = null
+        ?array $extraParams = null,
+        ?string $inlineMessageId = null
     ): Future {
         $payload = [
-            'chat_id' => $chatId,
-            'message_id' => $messageId,
             'latitude' => $latitude,
             'longitude' => $longitude,
         ];
+
+        if ($inlineMessageId !== null) {
+            $payload['inline_message_id'] = $inlineMessageId;
+        } else {
+            $payload['chat_id'] = $chatId;
+            $payload['message_id'] = $messageId;
+        }
+
         return $this->request('editMessageLiveLocation', $extraParams ? array_merge($payload, $extraParams) : $payload);
     }
 
@@ -124,15 +156,20 @@ trait SendsMessages
      * Edit only the reply markup of a message.
      */
     public function editMessageReplyMarkup(
-        int $chatId,
-        int $messageId,
+        int|string|null $chatId,
+        ?int $messageId,
         ?array $keyboard = null,
-        ?array $extraParams = null
+        ?array $extraParams = null,
+        ?string $inlineMessageId = null
     ): Future {
-        $payload = [
-            'chat_id' => $chatId,
-            'message_id' => $messageId
-        ];
+        $payload = [];
+
+        if ($inlineMessageId !== null) {
+            $payload['inline_message_id'] = $inlineMessageId;
+        } else {
+            $payload['chat_id'] = $chatId;
+            $payload['message_id'] = $messageId;
+        }
 
         if ($keyboard !== null) {
             $payload['reply_markup'] = json_encode($keyboard);
@@ -262,15 +299,20 @@ trait SendsMessages
      * Stop updating a live location message before live_period expires.
      */
     public function stopMessageLiveLocation(
-        int $chatId,
-        int $messageId,
+        int|string|null $chatId,
+        ?int $messageId,
         ?array $keyboard = null,
-        ?array $extraParams = null
+        ?array $extraParams = null,
+        ?string $inlineMessageId = null
     ): Future {
-        $payload = [
-            'chat_id' => $chatId,
-            'message_id' => $messageId
-        ];
+        $payload = [];
+
+        if ($inlineMessageId !== null) {
+            $payload['inline_message_id'] = $inlineMessageId;
+        } else {
+            $payload['chat_id'] = $chatId;
+            $payload['message_id'] = $messageId;
+        }
 
         if ($keyboard !== null) {
             $payload['reply_markup'] = json_encode($keyboard);

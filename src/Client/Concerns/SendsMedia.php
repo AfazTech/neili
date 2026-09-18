@@ -1,7 +1,7 @@
 <?php
 
 /**
- * @version 2.2.12
+ * @version 2.2.13
  * @author Abolfazl Majidi (Afaz)
  * @package neili
  * @license https://opensource.org/licenses/MIT
@@ -81,6 +81,12 @@ trait SendsMedia
     /**
      * Send paid media.
      *
+     * Each element of $media may be:
+     *   - a Media object (uploaded via multipart/form-data and referenced
+     *     with an attach:// key),
+     *   - an InputPaidMedia array,
+     *   - a string (file_id / URL).
+     *
      * @param array $media Array of InputPaidMedia
      */
     public function sendPaidMedia(
@@ -96,7 +102,6 @@ trait SendsMedia
         $fields = [
             'chat_id' => $chatId,
             'star_count' => $starCount,
-            'media' => json_encode($media),
         ];
         if ($caption !== null) {
             $fields['caption'] = $caption;
@@ -114,7 +119,36 @@ trait SendsMedia
             $fields = array_merge($fields, $extraParams);
         }
 
-        return $this->request('sendPaidMedia', $fields);
+        $attachments = [];
+        $normalized = [];
+
+        foreach ($media as $index => $item) {
+            if ($item instanceof Media) {
+                $attachKey = "file_{$index}_" . bin2hex(random_bytes(4));
+                $normalized[] = [
+                    'type' => $this->detectPaidMediaType($item->filePath),
+                    'media' => "attach://{$attachKey}",
+                ];
+                $attachments[$attachKey] = $item->filePath;
+            } elseif (is_array($item)) {
+                $normalized[] = $item;
+            } else {
+                throw new InvalidArgumentException(
+                    "Unsupported paid media item at position {$index}. " .
+                    "Expected Media object, InputPaidMedia array, or string."
+                );
+            }
+        }
+
+        if (empty($normalized)) {
+            throw new InvalidArgumentException("Paid media items array cannot be empty");
+        }
+
+        $fields['media'] = json_encode($normalized);
+
+        return $attachments
+            ? $this->requestWithFile('sendPaidMedia', $fields, $attachments)
+            : $this->request('sendPaidMedia', $fields);
     }
 
     /**
@@ -360,6 +394,20 @@ trait SendsMedia
             'mp4', 'mov', 'mkv', 'webm', 'avi' => 'video',
             'mp3', 'm4a', 'ogg', 'wav', 'flac' => 'audio',
             default => 'document',
+        };
+    }
+
+    /**
+     * Detect the InputPaidMedia type from a file extension.
+     * Only "photo" and "video" are valid for paid media.
+     */
+    private function detectPaidMediaType(string $path): string
+    {
+        $ext = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+
+        return match ($ext) {
+            'mp4', 'mov', 'mkv', 'webm', 'avi' => 'video',
+            default => 'photo',
         };
     }
 
