@@ -1,7 +1,6 @@
 <?php
 
 /**
- * @version 2.2.11
  * @author Abolfazl Majidi (Afaz)
  * @package neili
  * @license https://opensource.org/licenses/MIT
