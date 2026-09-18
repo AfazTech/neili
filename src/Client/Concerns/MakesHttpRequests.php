@@ -15,6 +15,10 @@ namespace Neili\Client\Concerns;
 use Amp\Http\Client\Form;
 use Amp\Http\Client\Request;
 use Amp\Future;
+use Neili\Exceptions\NeiliException;
+use Neili\Exceptions\PermanentException;
+use Neili\Exceptions\RateLimitException;
+use Neili\Exceptions\TransientException;
 use function Amp\async;
 
 trait MakesHttpRequests
@@ -64,6 +68,72 @@ trait MakesHttpRequests
     }
 
     /**
+     * Translate HTTP status + decoded Telegram payload into Neili exceptions.
+     *
+     * Classification rules:
+     *   - HTTP 5xx                    -> TransientException
+     *   - Telegram error_code 429     -> RateLimitException (with retry_after)
+     *   - Telegram error_code >= 500  -> TransientException
+     *   - any other non-ok response   -> PermanentException
+     *
+     * @throws TransientException on transient failures
+     * @throws RateLimitException on HTTP 429
+     * @throws PermanentException on non-recoverable errors
+     */
+    private function handleResponse(int $status, string $body): array
+    {
+        if ($status >= 500 && $status < 600) {
+            throw new TransientException("Telegram API returned HTTP {$status}", $status);
+        }
+
+        $decoded = json_decode($body, true);
+
+        if (!is_array($decoded)) {
+            throw new TransientException(
+                "Invalid JSON response from Telegram API (HTTP {$status})",
+                $status
+            );
+        }
+
+        if (array_key_exists('ok', $decoded) && $decoded['ok'] === false) {
+            $code = (int) ($decoded['error_code'] ?? $status);
+            $description = (string) ($decoded['description'] ?? 'Unknown Telegram API error');
+            $parameters = (array) ($decoded['parameters'] ?? []);
+
+            if ($code === 429) {
+                $retryAfter = (int) ($parameters['retry_after'] ?? 1);
+                throw new RateLimitException($description, $retryAfter, $parameters);
+            }
+
+            if ($code >= 500) {
+                throw new TransientException($description, $code);
+            }
+
+            throw new PermanentException($description, $code, $parameters);
+        }
+
+        return $decoded;
+    }
+
+    /**
+     * Convert a low-level transport failure into a TransientException so the
+     * Poller can retry without dying. PHP engine errors (Error subclasses)
+     * are re-thrown untouched, since they indicate bugs, not transient faults.
+     */
+    private function translateTransportError(\Throwable $e): \Throwable
+    {
+        if ($e instanceof NeiliException) {
+            return $e;
+        }
+
+        if ($e instanceof \Error) {
+            return $e;
+        }
+
+        return new TransientException("Transport error: {$e->getMessage()}", (int) $e->getCode(), $e);
+    }
+
+    /**
      * Perform async HTTP request to Telegram API
      */
     private function request(string $method, array $params = []): Future
@@ -78,8 +148,10 @@ trait MakesHttpRequests
                 $this->applyTimeouts($request, $method, $params);
 
                 $response = $this->httpClient->request($request);
+                $status = $response->getStatus();
                 $body = $response->getBody()->buffer();
-                return json_decode($body, true);
+
+                return $this->handleResponse($status, (string) $body);
             } catch (\Throwable $e) {
                 $this->settings->getLogger()->error(
                     "HTTP request failed | " .
@@ -88,7 +160,7 @@ trait MakesHttpRequests
                     " | Line: " . $e->getLine() .
                     " | Trace: " . $e->getTraceAsString()
                 );
-                throw $e;
+                throw $this->translateTransportError($e);
             }
         });
     }
@@ -121,8 +193,10 @@ trait MakesHttpRequests
                 $this->applyTimeouts($request, $method, $fields);
 
                 $response = $this->httpClient->request($request);
+                $status = $response->getStatus();
                 $body = $response->getBody()->buffer();
-                return json_decode($body, true);
+
+                return $this->handleResponse($status, (string) $body);
             } catch (\Throwable $e) {
                 $this->settings->getLogger()->error(
                     "HTTP request failed | " .
@@ -131,7 +205,7 @@ trait MakesHttpRequests
                     " | Line: " . $e->getLine() .
                     " | Trace: " . $e->getTraceAsString()
                 );
-                throw $e;
+                throw $this->translateTransportError($e);
             }
         });
     }

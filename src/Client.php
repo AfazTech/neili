@@ -87,6 +87,19 @@ class Client
     }
 
     /**
+     * Rebuild the underlying HTTP client.
+     *
+     * Called by the Poller after a run of consecutive transient failures so
+     * that stale connections / a broken pool are discarded and a fresh
+     * transport is used. This is a recovery mechanism, not a reaction to
+     * every individual exception.
+     */
+    public function reconnect(): void
+    {
+        $this->httpClient = HttpClientBuilder::buildDefault();
+    }
+
+    /**
      * Magic method for dynamically calling Telegram API methods.
      * Converts calls like $client->sendMessage(...) to request('sendMessage', [...])
      */
