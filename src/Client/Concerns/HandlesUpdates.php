@@ -16,8 +16,8 @@ use Amp\Future;
 trait HandlesUpdates
 {
     /**
-     * Handle incoming update
-     * Supports both CLI (for multi-process) and webhook mode
+     * Handle incoming update.
+     * Supports both CLI (for multi-process) and webhook mode.
      */
     public function handleUpdate(?string $secretToken = null): array
     {
@@ -51,22 +51,25 @@ trait HandlesUpdates
             }
 
             return $update;
-
-        } else {
-            // CLI mode
-            if (!isset($argv[1])) {
-                throw new \RuntimeException('No payload provided in CLI');
-            }
-            $update = json_decode(base64_decode($argv[1]), true);
-            if (json_last_error() !== JSON_ERROR_NONE) {
-                throw new \RuntimeException('Invalid JSON in CLI payload: ' . json_last_error_msg());
-            }
-            return $update;
         }
+
+        // CLI mode
+        if (!isset($argv[1])) {
+            throw new \RuntimeException('No payload provided in CLI');
+        }
+        $update = json_decode(base64_decode($argv[1]), true);
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            throw new \RuntimeException('Invalid JSON in CLI payload: ' . json_last_error_msg());
+        }
+        return $update;
     }
 
     /**
      * Get updates.
+     *
+     * When $allowedUpdates is provided, the list is JSON-encoded as required
+     * by the Bot API. An empty array is meaningful: it tells Telegram to
+     * exclude chat_member, message_reaction, and message_reaction_count.
      */
     public function getUpdates(
         ?int $offset = null,

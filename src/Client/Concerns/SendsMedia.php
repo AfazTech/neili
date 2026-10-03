@@ -233,10 +233,6 @@ trait SendsMedia
 
     /**
      * Send sticker.
-     *
-     * Supports uploading new .WEBP, .TGS or .WEBM stickers via a Media object,
-     * or passing a file_id / HTTP URL as a string.
-     * Video and animated stickers can't be sent via an HTTP URL.
      */
     public function sendSticker(int|string $chatId, string|Media $sticker, ?array $extraParams = null): Future
     {
@@ -314,13 +310,19 @@ trait SendsMedia
 
     /**
      * Send a group of photos, videos, documents or audios as an album.
+     *
+     * $replyParameters follows the modern ReplyParameters object (Bot API
+     * 7.0+). The legacy reply_to_message_id is no longer used.
+     *
+     * @param array $mediaItems Array of Media, strings, or InputMedia arrays
+     * @param array|null $replyParameters ReplyParameters payload
      */
     public function sendMediaGroup(
         int|string $chatId,
         array $mediaItems,
         ?string $caption = null,
         ?bool $disableNotification = null,
-        ?int $replyToMessageId = null,
+        ?array $replyParameters = null,
         ?array $extraParams = null
     ): Future {
         $inputMedia = [];
@@ -384,8 +386,8 @@ trait SendsMedia
             $payload['disable_notification'] = $disableNotification;
         }
 
-        if ($replyToMessageId !== null) {
-            $payload['reply_to_message_id'] = $replyToMessageId;
+        if ($replyParameters !== null) {
+            $payload['reply_parameters'] = json_encode($replyParameters);
         }
 
         if ($extraParams) {

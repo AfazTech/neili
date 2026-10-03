@@ -16,17 +16,17 @@ use Amp\Future;
 trait ManagesChatMembers
 {
     /**
-     * Get specific chat member info
+     * Get specific chat member info.
      */
-    public function getChatMember(int $chatId, int $userId): Future
+    public function getChatMember(int|string $chatId, int $userId): Future
     {
         return $this->request('getChatMember', ['chat_id' => $chatId, 'user_id' => $userId]);
     }
 
     /**
-     * Get chat administrators
+     * Get chat administrators.
      */
-    public function getChatAdministrators(int $chatId, ?bool $returnBots = null): Future
+    public function getChatAdministrators(int|string $chatId, ?bool $returnBots = null): Future
     {
         $payload = ['chat_id' => $chatId];
         if ($returnBots !== null) {
@@ -38,7 +38,7 @@ trait ManagesChatMembers
     /**
      * Ban a user in a group, supergroup or channel.
      */
-    public function banChatMember(int $chatId, int $userId, ?int $untilDate = null, ?bool $revokeMessages = null, ?array $extraParams = null): Future
+    public function banChatMember(int|string $chatId, int $userId, ?int $untilDate = null, ?bool $revokeMessages = null, ?array $extraParams = null): Future
     {
         $payload = ['chat_id' => $chatId, 'user_id' => $userId];
         if ($untilDate !== null) {
@@ -51,29 +51,37 @@ trait ManagesChatMembers
     }
 
     /**
-     * Unban user
+     * Unban user.
      */
-    public function unbanChatMember(int $chatId, int $userId, ?array $extraParams = null): Future
+    public function unbanChatMember(int|string $chatId, int $userId, ?bool $onlyIfBanned = null, ?array $extraParams = null): Future
     {
         $payload = ['chat_id' => $chatId, 'user_id' => $userId];
+        if ($onlyIfBanned !== null) {
+            $payload['only_if_banned'] = $onlyIfBanned;
+        }
         return $this->request('unbanChatMember', $payload + ($extraParams ?? []));
     }
 
     /**
-     * Restrict user permissions in chat
+     * Restrict user permissions in chat.
      */
-    public function restrictChatMember(int $chatId, int $userId, array $permissions, ?int $untilDate = null, ?array $extraParams = null): Future
+    public function restrictChatMember(int|string $chatId, int $userId, array $permissions, ?int $untilDate = null, ?array $extraParams = null): Future
     {
-        $payload = ['chat_id' => $chatId, 'user_id' => $userId, 'permissions' => json_encode($permissions)];
-        if ($untilDate !== null)
+        $payload = [
+            'chat_id' => $chatId,
+            'user_id' => $userId,
+            'permissions' => json_encode($permissions),
+        ];
+        if ($untilDate !== null) {
             $payload['until_date'] = $untilDate;
+        }
         return $this->request('restrictChatMember', $payload + ($extraParams ?? []));
     }
 
     /**
-     * Promote user with admin privileges
+     * Promote user with admin privileges.
      */
-    public function promoteChatMember(int $chatId, int $userId, array $privileges, ?array $extraParams = null): Future
+    public function promoteChatMember(int|string $chatId, int $userId, array $privileges, ?array $extraParams = null): Future
     {
         $payload = ['chat_id' => $chatId, 'user_id' => $userId] + $privileges;
         return $this->request('promoteChatMember', $payload + ($extraParams ?? []));
@@ -83,14 +91,14 @@ trait ManagesChatMembers
      * Set a custom title for an administrator in a supergroup.
      */
     public function setChatAdministratorCustomTitle(
-        int $chatId,
+        int|string $chatId,
         int $userId,
         string $customTitle
     ): Future {
         return $this->request('setChatAdministratorCustomTitle', [
             'chat_id' => $chatId,
             'user_id' => $userId,
-            'custom_title' => $customTitle
+            'custom_title' => $customTitle,
         ]);
     }
 
@@ -116,13 +124,13 @@ trait ManagesChatMembers
      * Ban a channel chat in a supergroup or a channel.
      */
     public function banChatSenderChat(
-        int $chatId,
+        int|string $chatId,
         int $senderChatId,
         ?array $extraParams = null
     ): Future {
         $payload = [
             'chat_id' => $chatId,
-            'sender_chat_id' => $senderChatId
+            'sender_chat_id' => $senderChatId,
         ];
 
         return $this->request('banChatSenderChat', $extraParams ? array_merge($payload, $extraParams) : $payload);
@@ -132,13 +140,13 @@ trait ManagesChatMembers
      * Unban a previously banned channel chat in a supergroup or a channel.
      */
     public function unbanChatSenderChat(
-        int $chatId,
+        int|string $chatId,
         int $senderChatId,
         ?array $extraParams = null
     ): Future {
         $payload = [
             'chat_id' => $chatId,
-            'sender_chat_id' => $senderChatId
+            'sender_chat_id' => $senderChatId,
         ];
 
         return $this->request('unbanChatSenderChat', $extraParams ? array_merge($payload, $extraParams) : $payload);
@@ -147,22 +155,22 @@ trait ManagesChatMembers
     /**
      * Approve a chat join request.
      */
-    public function approveChatJoinRequest(int $chatId, int $userId): Future
+    public function approveChatJoinRequest(int|string $chatId, int $userId): Future
     {
         return $this->request('approveChatJoinRequest', [
             'chat_id' => $chatId,
-            'user_id' => $userId
+            'user_id' => $userId,
         ]);
     }
 
     /**
      * Decline a chat join request.
      */
-    public function declineChatJoinRequest(int $chatId, int $userId): Future
+    public function declineChatJoinRequest(int|string $chatId, int $userId): Future
     {
         return $this->request('declineChatJoinRequest', [
             'chat_id' => $chatId,
-            'user_id' => $userId
+            'user_id' => $userId,
         ]);
     }
 
@@ -200,7 +208,7 @@ trait ManagesChatMembers
     }
 
     /**
-     * Get user profile photos
+     * Get user profile photos.
      */
     public function getUserProfilePhotos(int $userId, ?int $offset = null, ?int $limit = null): Future
     {

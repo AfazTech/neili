@@ -105,21 +105,30 @@ trait HandlesBusiness
     /**
      * Change the profile photo of a managed business account.
      *
-     * @param array $photo InputProfilePhoto payload
+     * Accepts either a Media object (uploaded via multipart/form-data) or a
+     * pre-built InputProfilePhoto array. When a Media object is given, the
+     * file extension decides between the "static" and "animated" variants.
+     *
+     * @param Media|array $photo
      */
     public function setBusinessAccountProfilePhoto(
         string $businessConnectionId,
-        array $photo,
+        Media|array $photo,
         ?bool $isPublic = null
     ): Future {
+        [$profilePhoto, $files] = $this->buildInputProfilePhoto($photo);
+
         $payload = [
             'business_connection_id' => $businessConnectionId,
-            'photo' => json_encode($photo),
+            'photo' => json_encode($profilePhoto),
         ];
         if ($isPublic !== null) {
             $payload['is_public'] = $isPublic;
         }
-        return $this->request('setBusinessAccountProfilePhoto', $payload);
+
+        return $files
+            ? $this->requestWithFile('setBusinessAccountProfilePhoto', $payload, $files)
+            : $this->request('setBusinessAccountProfilePhoto', $payload);
     }
 
     /**

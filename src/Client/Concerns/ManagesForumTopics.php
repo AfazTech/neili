@@ -16,10 +16,10 @@ use Amp\Future;
 trait ManagesForumTopics
 {
     /**
-     * Create a topic in a forum supergroup chat.
+     * Create a topic in a forum supergroup chat or a private chat with a user.
      */
     public function createForumTopic(
-        int $chatId,
+        int|string $chatId,
         string $name,
         ?int $iconColor = null,
         ?string $iconCustomEmojiId = null,
@@ -27,7 +27,7 @@ trait ManagesForumTopics
     ): Future {
         $payload = [
             'chat_id' => $chatId,
-            'name' => $name
+            'name' => $name,
         ];
 
         if ($iconColor !== null) {
@@ -45,7 +45,7 @@ trait ManagesForumTopics
      * Edit name and icon of a topic in a forum supergroup chat.
      */
     public function editForumTopic(
-        int $chatId,
+        int|string $chatId,
         int $messageThreadId,
         ?string $name = null,
         ?string $iconCustomEmojiId = null,
@@ -53,7 +53,7 @@ trait ManagesForumTopics
     ): Future {
         $payload = [
             'chat_id' => $chatId,
-            'message_thread_id' => $messageThreadId
+            'message_thread_id' => $messageThreadId,
         ];
 
         if ($name !== null) {
@@ -70,51 +70,51 @@ trait ManagesForumTopics
     /**
      * Close an open topic in a forum supergroup chat.
      */
-    public function closeForumTopic(int $chatId, int $messageThreadId): Future
+    public function closeForumTopic(int|string $chatId, int $messageThreadId): Future
     {
         return $this->request('closeForumTopic', [
             'chat_id' => $chatId,
-            'message_thread_id' => $messageThreadId
+            'message_thread_id' => $messageThreadId,
         ]);
     }
 
     /**
      * Reopen a closed topic in a forum supergroup chat.
      */
-    public function reopenForumTopic(int $chatId, int $messageThreadId): Future
+    public function reopenForumTopic(int|string $chatId, int $messageThreadId): Future
     {
         return $this->request('reopenForumTopic', [
             'chat_id' => $chatId,
-            'message_thread_id' => $messageThreadId
+            'message_thread_id' => $messageThreadId,
         ]);
     }
 
     /**
-     * Delete a forum topic along with all its messages in a forum supergroup chat.
+     * Delete a forum topic along with all its messages.
      */
-    public function deleteForumTopic(int $chatId, int $messageThreadId): Future
+    public function deleteForumTopic(int|string $chatId, int $messageThreadId): Future
     {
         return $this->request('deleteForumTopic', [
             'chat_id' => $chatId,
-            'message_thread_id' => $messageThreadId
+            'message_thread_id' => $messageThreadId,
         ]);
     }
 
     /**
      * Clear the list of pinned messages in a forum topic.
      */
-    public function unpinAllForumTopicMessages(int $chatId, int $messageThreadId): Future
+    public function unpinAllForumTopicMessages(int|string $chatId, int $messageThreadId): Future
     {
         return $this->request('unpinAllForumTopicMessages', [
             'chat_id' => $chatId,
-            'message_thread_id' => $messageThreadId
+            'message_thread_id' => $messageThreadId,
         ]);
     }
 
     /**
      * Clear the list of pinned messages in a General forum topic.
      */
-    public function unpinAllGeneralForumTopicMessages(int $chatId): Future
+    public function unpinAllGeneralForumTopicMessages(int|string $chatId): Future
     {
         return $this->request('unpinAllGeneralForumTopicMessages', ['chat_id' => $chatId]);
     }
@@ -130,18 +130,18 @@ trait ManagesForumTopics
     /**
      * Edit the name of the 'General' topic in a forum supergroup chat.
      */
-    public function editGeneralForumTopic(int $chatId, string $name): Future
+    public function editGeneralForumTopic(int|string $chatId, string $name): Future
     {
         return $this->request('editGeneralForumTopic', [
             'chat_id' => $chatId,
-            'name' => $name
+            'name' => $name,
         ]);
     }
 
     /**
      * Close an open 'General' topic in a forum supergroup chat.
      */
-    public function closeGeneralForumTopic(int $chatId): Future
+    public function closeGeneralForumTopic(int|string $chatId): Future
     {
         return $this->request('closeGeneralForumTopic', ['chat_id' => $chatId]);
     }
@@ -149,7 +149,7 @@ trait ManagesForumTopics
     /**
      * Reopen a closed 'General' topic in a forum supergroup chat.
      */
-    public function reopenGeneralForumTopic(int $chatId): Future
+    public function reopenGeneralForumTopic(int|string $chatId): Future
     {
         return $this->request('reopenGeneralForumTopic', ['chat_id' => $chatId]);
     }
@@ -157,7 +157,7 @@ trait ManagesForumTopics
     /**
      * Hide the 'General' topic in a forum supergroup chat.
      */
-    public function hideGeneralForumTopic(int $chatId): Future
+    public function hideGeneralForumTopic(int|string $chatId): Future
     {
         return $this->request('hideGeneralForumTopic', ['chat_id' => $chatId]);
     }
@@ -165,7 +165,7 @@ trait ManagesForumTopics
     /**
      * Unhide the 'General' topic in a forum supergroup chat.
      */
-    public function unhideGeneralForumTopic(int $chatId): Future
+    public function unhideGeneralForumTopic(int|string $chatId): Future
     {
         return $this->request('unhideGeneralForumTopic', ['chat_id' => $chatId]);
     }
