@@ -37,51 +37,47 @@ trait SendsMessages
         ?bool $allowPaidBroadcast = null,
         ?string $messageEffectId = null,
         ?string $businessConnectionId = null,
-        ?array $suggestedPostParameters = null
+        ?array $suggestedPostParameters = null,
+        ?string $parseMode = null,
+        ?array $entities = null,
+        ?array $ephemeralMessageParameters = null
     ): Future {
         $payload = ['chat_id' => $chatId, 'text' => $text];
 
-        if ($keyboard !== null) {
+        if ($keyboard !== null)
             $payload['reply_markup'] = json_encode($keyboard);
-        }
-        if ($messageThreadId !== null) {
+        if ($messageThreadId !== null)
             $payload['message_thread_id'] = $messageThreadId;
-        }
-        if ($directMessagesTopicId !== null) {
+        if ($directMessagesTopicId !== null)
             $payload['direct_messages_topic_id'] = $directMessagesTopicId;
-        }
-        if ($replyParameters !== null) {
+        if ($replyParameters !== null)
             $payload['reply_parameters'] = json_encode($replyParameters);
-        }
-        if ($linkPreviewOptions !== null) {
+        if ($linkPreviewOptions !== null)
             $payload['link_preview_options'] = json_encode($linkPreviewOptions);
-        }
-        if ($disableNotification !== null) {
+        if ($disableNotification !== null)
             $payload['disable_notification'] = $disableNotification;
-        }
-        if ($protectContent !== null) {
+        if ($protectContent !== null)
             $payload['protect_content'] = $protectContent;
-        }
-        if ($allowPaidBroadcast !== null) {
+        if ($allowPaidBroadcast !== null)
             $payload['allow_paid_broadcast'] = $allowPaidBroadcast;
-        }
-        if ($messageEffectId !== null) {
+        if ($messageEffectId !== null)
             $payload['message_effect_id'] = $messageEffectId;
-        }
-        if ($businessConnectionId !== null) {
+        if ($businessConnectionId !== null)
             $payload['business_connection_id'] = $businessConnectionId;
-        }
-        if ($suggestedPostParameters !== null) {
+        if ($suggestedPostParameters !== null)
             $payload['suggested_post_parameters'] = json_encode($suggestedPostParameters);
-        }
+        if ($parseMode !== null)
+            $payload['parse_mode'] = $parseMode;
+        if ($entities !== null)
+            $payload['entities'] = json_encode($entities);
+        if ($ephemeralMessageParameters !== null)
+            $payload['ephemeral_message_parameters'] = json_encode($ephemeralMessageParameters);
 
         return $this->request('sendMessage', $extraParams ? array_merge($payload, $extraParams) : $payload);
     }
 
     /**
-     * Reply to a specific message.
-     *
-     * Uses ReplyParameters under the hood, matching current Bot API rules.
+     * Reply to a specific message using ReplyParameters.
      */
     public function reply(
         int|string $chatId,
@@ -90,14 +86,12 @@ trait SendsMessages
         ?array $keyboard = null,
         ?array $extraParams = null
     ): Future {
-        $replyParameters = ['message_id' => $replyToMessageId];
-
         return $this->sendMessage(
             $chatId,
             $text,
             $keyboard,
             $extraParams,
-            replyParameters: $replyParameters,
+            replyParameters: ['message_id' => $replyToMessageId],
         );
     }
 
@@ -107,20 +101,44 @@ trait SendsMessages
     public function editMessageText(
         int|string|null $chatId,
         ?int $messageId,
-        string $text,
+        ?string $text = null,
         ?array $keyboard = null,
         ?array $extraParams = null,
-        ?string $inlineMessageId = null
+        ?string $inlineMessageId = null,
+        ?array $richMessage = null,
+        ?string $parseMode = null,
+        ?array $entities = null,
+        ?array $linkPreviewOptions = null,
+        ?string $businessConnectionId = null
     ): Future {
-        $payload = ['text' => $text];
+        if ($text === null && $richMessage === null) {
+            throw new InvalidArgumentException('Either text or rich_message must be provided.');
+        }
+
+        $payload = [];
+
         if ($inlineMessageId !== null) {
             $payload['inline_message_id'] = $inlineMessageId;
         } else {
             $payload['chat_id'] = $chatId;
             $payload['message_id'] = $messageId;
         }
+
+        if ($text !== null)
+            $payload['text'] = $text;
+        if ($richMessage !== null)
+            $payload['rich_message'] = json_encode($richMessage);
+        if ($parseMode !== null)
+            $payload['parse_mode'] = $parseMode;
+        if ($entities !== null)
+            $payload['entities'] = json_encode($entities);
+        if ($linkPreviewOptions !== null)
+            $payload['link_preview_options'] = json_encode($linkPreviewOptions);
         if ($keyboard !== null)
             $payload['reply_markup'] = json_encode($keyboard);
+        if ($businessConnectionId !== null)
+            $payload['business_connection_id'] = $businessConnectionId;
+
         return $this->request('editMessageText', $extraParams ? array_merge($payload, $extraParams) : $payload);
     }
 
@@ -133,7 +151,10 @@ trait SendsMessages
         ?string $caption = null,
         ?array $keyboard = null,
         ?array $extraParams = null,
-        ?string $inlineMessageId = null
+        ?string $inlineMessageId = null,
+        ?string $parseMode = null,
+        ?array $captionEntities = null,
+        ?bool $showCaptionAboveMedia = null
     ): Future {
         $payload = [];
 
@@ -144,13 +165,16 @@ trait SendsMessages
             $payload['message_id'] = $messageId;
         }
 
-        if ($caption !== null) {
+        if ($caption !== null)
             $payload['caption'] = $caption;
-        }
-
-        if ($keyboard !== null) {
+        if ($parseMode !== null)
+            $payload['parse_mode'] = $parseMode;
+        if ($captionEntities !== null)
+            $payload['caption_entities'] = json_encode($captionEntities);
+        if ($showCaptionAboveMedia !== null)
+            $payload['show_caption_above_media'] = $showCaptionAboveMedia;
+        if ($keyboard !== null)
             $payload['reply_markup'] = json_encode($keyboard);
-        }
 
         return $this->request('editMessageCaption', $extraParams ? array_merge($payload, $extraParams) : $payload);
     }
@@ -201,7 +225,13 @@ trait SendsMessages
         float $latitude,
         float $longitude,
         ?array $extraParams = null,
-        ?string $inlineMessageId = null
+        ?string $inlineMessageId = null,
+        ?float $horizontalAccuracy = null,
+        ?int $heading = null,
+        ?int $proximityAlertRadius = null,
+        ?int $livePeriod = null,
+        ?array $keyboard = null,
+        ?string $businessConnectionId = null
     ): Future {
         $payload = [
             'latitude' => $latitude,
@@ -214,6 +244,19 @@ trait SendsMessages
             $payload['chat_id'] = $chatId;
             $payload['message_id'] = $messageId;
         }
+
+        if ($horizontalAccuracy !== null)
+            $payload['horizontal_accuracy'] = $horizontalAccuracy;
+        if ($heading !== null)
+            $payload['heading'] = $heading;
+        if ($proximityAlertRadius !== null)
+            $payload['proximity_alert_radius'] = $proximityAlertRadius;
+        if ($livePeriod !== null)
+            $payload['live_period'] = $livePeriod;
+        if ($keyboard !== null)
+            $payload['reply_markup'] = json_encode($keyboard);
+        if ($businessConnectionId !== null)
+            $payload['business_connection_id'] = $businessConnectionId;
 
         return $this->request('editMessageLiveLocation', $extraParams ? array_merge($payload, $extraParams) : $payload);
     }
@@ -237,9 +280,8 @@ trait SendsMessages
             $payload['message_id'] = $messageId;
         }
 
-        if ($keyboard !== null) {
+        if ($keyboard !== null)
             $payload['reply_markup'] = json_encode($keyboard);
-        }
 
         return $this->request('editMessageReplyMarkup', $extraParams ? array_merge($payload, $extraParams) : $payload);
     }
@@ -271,16 +313,34 @@ trait SendsMessages
         int|string $fromChatId,
         int $messageId,
         ?int $videoStartTimestamp = null,
-        ?array $extraParams = null
+        ?array $extraParams = null,
+        ?int $messageThreadId = null,
+        ?int $directMessagesTopicId = null,
+        ?bool $disableNotification = null,
+        ?bool $protectContent = null,
+        ?string $messageEffectId = null,
+        ?array $suggestedPostParameters = null
     ): Future {
         $payload = [
             'chat_id' => $chatId,
             'from_chat_id' => $fromChatId,
             'message_id' => $messageId,
         ];
-        if ($videoStartTimestamp !== null) {
+        if ($videoStartTimestamp !== null)
             $payload['video_start_timestamp'] = $videoStartTimestamp;
-        }
+        if ($messageThreadId !== null)
+            $payload['message_thread_id'] = $messageThreadId;
+        if ($directMessagesTopicId !== null)
+            $payload['direct_messages_topic_id'] = $directMessagesTopicId;
+        if ($disableNotification !== null)
+            $payload['disable_notification'] = $disableNotification;
+        if ($protectContent !== null)
+            $payload['protect_content'] = $protectContent;
+        if ($messageEffectId !== null)
+            $payload['message_effect_id'] = $messageEffectId;
+        if ($suggestedPostParameters !== null)
+            $payload['suggested_post_parameters'] = json_encode($suggestedPostParameters);
+
         return $this->request('forwardMessage', $extraParams ? array_merge($payload, $extraParams) : $payload);
     }
 
@@ -293,19 +353,24 @@ trait SendsMessages
         array $messageIds,
         ?bool $disableNotification = null,
         ?bool $protectContent = null,
-        ?array $extraParams = null
+        ?array $extraParams = null,
+        ?int $messageThreadId = null,
+        ?int $directMessagesTopicId = null
     ): Future {
         $payload = [
             'chat_id' => $chatId,
             'from_chat_id' => $fromChatId,
             'message_ids' => json_encode($messageIds),
         ];
-        if ($disableNotification !== null) {
+        if ($disableNotification !== null)
             $payload['disable_notification'] = $disableNotification;
-        }
-        if ($protectContent !== null) {
+        if ($protectContent !== null)
             $payload['protect_content'] = $protectContent;
-        }
+        if ($messageThreadId !== null)
+            $payload['message_thread_id'] = $messageThreadId;
+        if ($directMessagesTopicId !== null)
+            $payload['direct_messages_topic_id'] = $directMessagesTopicId;
+
         return $this->request('forwardMessages', $extraParams ? array_merge($payload, $extraParams) : $payload);
     }
 
@@ -318,7 +383,19 @@ trait SendsMessages
         int $messageId,
         ?string $caption = null,
         ?array $keyboard = null,
-        ?array $extraParams = null
+        ?array $extraParams = null,
+        ?string $parseMode = null,
+        ?array $captionEntities = null,
+        ?bool $showCaptionAboveMedia = null,
+        ?int $videoStartTimestamp = null,
+        ?int $messageThreadId = null,
+        ?int $directMessagesTopicId = null,
+        ?bool $disableNotification = null,
+        ?bool $protectContent = null,
+        ?bool $allowPaidBroadcast = null,
+        ?string $messageEffectId = null,
+        ?array $replyParameters = null,
+        ?array $suggestedPostParameters = null
     ): Future {
         $payload = [
             'chat_id' => $chatId,
@@ -326,13 +403,34 @@ trait SendsMessages
             'message_id' => $messageId,
         ];
 
-        if ($caption !== null) {
+        if ($caption !== null)
             $payload['caption'] = $caption;
-        }
-
-        if ($keyboard !== null) {
+        if ($parseMode !== null)
+            $payload['parse_mode'] = $parseMode;
+        if ($captionEntities !== null)
+            $payload['caption_entities'] = json_encode($captionEntities);
+        if ($showCaptionAboveMedia !== null)
+            $payload['show_caption_above_media'] = $showCaptionAboveMedia;
+        if ($videoStartTimestamp !== null)
+            $payload['video_start_timestamp'] = $videoStartTimestamp;
+        if ($keyboard !== null)
             $payload['reply_markup'] = json_encode($keyboard);
-        }
+        if ($messageThreadId !== null)
+            $payload['message_thread_id'] = $messageThreadId;
+        if ($directMessagesTopicId !== null)
+            $payload['direct_messages_topic_id'] = $directMessagesTopicId;
+        if ($disableNotification !== null)
+            $payload['disable_notification'] = $disableNotification;
+        if ($protectContent !== null)
+            $payload['protect_content'] = $protectContent;
+        if ($allowPaidBroadcast !== null)
+            $payload['allow_paid_broadcast'] = $allowPaidBroadcast;
+        if ($messageEffectId !== null)
+            $payload['message_effect_id'] = $messageEffectId;
+        if ($replyParameters !== null)
+            $payload['reply_parameters'] = json_encode($replyParameters);
+        if ($suggestedPostParameters !== null)
+            $payload['suggested_post_parameters'] = json_encode($suggestedPostParameters);
 
         return $this->request('copyMessage', $extraParams ? array_merge($payload, $extraParams) : $payload);
     }
@@ -347,22 +445,26 @@ trait SendsMessages
         ?bool $disableNotification = null,
         ?bool $protectContent = null,
         ?bool $removeCaption = null,
-        ?array $extraParams = null
+        ?array $extraParams = null,
+        ?int $messageThreadId = null,
+        ?int $directMessagesTopicId = null
     ): Future {
         $payload = [
             'chat_id' => $chatId,
             'from_chat_id' => $fromChatId,
             'message_ids' => json_encode($messageIds),
         ];
-        if ($disableNotification !== null) {
+        if ($disableNotification !== null)
             $payload['disable_notification'] = $disableNotification;
-        }
-        if ($protectContent !== null) {
+        if ($protectContent !== null)
             $payload['protect_content'] = $protectContent;
-        }
-        if ($removeCaption !== null) {
+        if ($removeCaption !== null)
             $payload['remove_caption'] = $removeCaption;
-        }
+        if ($messageThreadId !== null)
+            $payload['message_thread_id'] = $messageThreadId;
+        if ($directMessagesTopicId !== null)
+            $payload['direct_messages_topic_id'] = $directMessagesTopicId;
+
         return $this->request('copyMessages', $extraParams ? array_merge($payload, $extraParams) : $payload);
     }
 
@@ -374,7 +476,8 @@ trait SendsMessages
         ?int $messageId,
         ?array $keyboard = null,
         ?array $extraParams = null,
-        ?string $inlineMessageId = null
+        ?string $inlineMessageId = null,
+        ?string $businessConnectionId = null
     ): Future {
         $payload = [];
 
@@ -385,9 +488,10 @@ trait SendsMessages
             $payload['message_id'] = $messageId;
         }
 
-        if ($keyboard !== null) {
+        if ($keyboard !== null)
             $payload['reply_markup'] = json_encode($keyboard);
-        }
+        if ($businessConnectionId !== null)
+            $payload['business_connection_id'] = $businessConnectionId;
 
         return $this->request('stopMessageLiveLocation', $extraParams ? array_merge($payload, $extraParams) : $payload);
     }
@@ -406,12 +510,10 @@ trait SendsMessages
             'chat_id' => $chatId,
             'message_id' => $messageId,
         ];
-        if ($reaction !== null) {
+        if ($reaction !== null)
             $payload['reaction'] = json_encode($reaction);
-        }
-        if ($isBig !== null) {
+        if ($isBig !== null)
             $payload['is_big'] = $isBig;
-        }
         return $this->request('setMessageReaction', $extraParams ? array_merge($payload, $extraParams) : $payload);
     }
 
@@ -428,12 +530,10 @@ trait SendsMessages
             'chat_id' => $chatId,
             'message_id' => $messageId,
         ];
-        if ($userId !== null) {
+        if ($userId !== null)
             $payload['user_id'] = $userId;
-        }
-        if ($actorChatId !== null) {
+        if ($actorChatId !== null)
             $payload['actor_chat_id'] = $actorChatId;
-        }
         return $this->request('deleteMessageReaction', $payload);
     }
 
@@ -446,45 +546,77 @@ trait SendsMessages
         ?int $actorChatId = null
     ): Future {
         $payload = ['chat_id' => $chatId];
-        if ($userId !== null) {
+        if ($userId !== null)
             $payload['user_id'] = $userId;
-        }
-        if ($actorChatId !== null) {
+        if ($actorChatId !== null)
             $payload['actor_chat_id'] = $actorChatId;
-        }
         return $this->request('deleteAllMessageReactions', $payload);
     }
 
     /**
      * Send "typing", "upload_photo", etc. action indicator.
      */
-    public function sendChatAction(int|string $chatId, string $action): Future
-    {
-        return $this->request('sendChatAction', ['chat_id' => $chatId, 'action' => $action]);
+    public function sendChatAction(
+        int|string $chatId,
+        string $action,
+        ?array $extraParams = null,
+        ?int $messageThreadId = null,
+        ?string $businessConnectionId = null
+    ): Future {
+        $payload = ['chat_id' => $chatId, 'action' => $action];
+        if ($messageThreadId !== null)
+            $payload['message_thread_id'] = $messageThreadId;
+        if ($businessConnectionId !== null)
+            $payload['business_connection_id'] = $businessConnectionId;
+        return $this->request('sendChatAction', $extraParams ? array_merge($payload, $extraParams) : $payload);
     }
 
     /**
      * Send dice animation.
      */
-    public function sendDice(int|string $chatId, ?string $emoji = null, ?array $extraParams = null): Future
-    {
+    public function sendDice(
+        int|string $chatId,
+        ?string $emoji = null,
+        ?array $extraParams = null,
+        ?int $messageThreadId = null,
+        ?int $directMessagesTopicId = null,
+        ?bool $disableNotification = null,
+        ?bool $protectContent = null,
+        ?bool $allowPaidBroadcast = null,
+        ?string $messageEffectId = null,
+        ?array $replyParameters = null,
+        ?array $keyboard = null,
+        ?string $businessConnectionId = null,
+        ?array $suggestedPostParameters = null
+    ): Future {
         $payload = ['chat_id' => $chatId];
         if ($emoji !== null)
             $payload['emoji'] = $emoji;
-        return $this->request('sendDice', $payload + ($extraParams ?? []));
+        if ($messageThreadId !== null)
+            $payload['message_thread_id'] = $messageThreadId;
+        if ($directMessagesTopicId !== null)
+            $payload['direct_messages_topic_id'] = $directMessagesTopicId;
+        if ($disableNotification !== null)
+            $payload['disable_notification'] = $disableNotification;
+        if ($protectContent !== null)
+            $payload['protect_content'] = $protectContent;
+        if ($allowPaidBroadcast !== null)
+            $payload['allow_paid_broadcast'] = $allowPaidBroadcast;
+        if ($messageEffectId !== null)
+            $payload['message_effect_id'] = $messageEffectId;
+        if ($replyParameters !== null)
+            $payload['reply_parameters'] = json_encode($replyParameters);
+        if ($keyboard !== null)
+            $payload['reply_markup'] = json_encode($keyboard);
+        if ($businessConnectionId !== null)
+            $payload['business_connection_id'] = $businessConnectionId;
+        if ($suggestedPostParameters !== null)
+            $payload['suggested_post_parameters'] = json_encode($suggestedPostParameters);
+        return $this->request('sendDice', $extraParams ? array_merge($payload, $extraParams) : $payload);
     }
 
     /**
      * Send poll (quiz or survey).
-     *
-     * Each option may be a plain string, an InputPollOption array, or an
-     * array containing a local Media object inside its 'media' field. All
-     * media fields (per-option, poll description, quiz explanation) are
-     * normalized and their local files uploaded via multipart/form-data.
-     *
-     * @param array $options  List of poll options
-     * @param array|null $media               InputPollMedia for the poll description
-     * @param array|null $explanationMedia    InputPollMedia for the quiz explanation
      */
     public function sendPoll(
         int|string $chatId,
@@ -499,7 +631,26 @@ trait SendsMessages
         ?array $descriptionEntities = null,
         ?string $explanation = null,
         ?array $explanationEntities = null,
-        ?array $explanationMedia = null
+        ?array $explanationMedia = null,
+        ?bool $allowsMultipleAnswers = null,
+        ?bool $allowsRevoting = null,
+        ?bool $shuffleOptions = null,
+        ?bool $allowAddingOptions = null,
+        ?bool $hideResultsUntilCloses = null,
+        ?bool $membersOnly = null,
+        ?array $countryCodes = null,
+        ?array $correctOptionIds = null,
+        ?int $openPeriod = null,
+        ?int $closeDate = null,
+        ?bool $isClosed = null,
+        ?bool $disableNotification = null,
+        ?bool $protectContent = null,
+        ?bool $allowPaidBroadcast = null,
+        ?string $messageEffectId = null,
+        ?array $replyParameters = null,
+        ?array $keyboard = null,
+        ?string $businessConnectionId = null,
+        ?int $messageThreadId = null
     ): Future {
         $attachments = [];
         $normalizedOptions = [];
@@ -533,41 +684,69 @@ trait SendsMessages
             'options' => json_encode($normalizedOptions),
         ];
 
-        if ($isAnonymous !== null) {
+        if ($isAnonymous !== null)
             $payload['is_anonymous'] = $isAnonymous;
-        }
-        if ($type !== null) {
+        if ($type !== null)
             $payload['type'] = $type;
-        }
-        if ($questionEntities !== null) {
+        if ($questionEntities !== null)
             $payload['question_entities'] = json_encode($questionEntities);
-        }
-        if ($media !== null) {
+        if ($media !== null)
             $payload['media'] = json_encode(
                 $this->extractPollMediaAttachments($media, $attachments, 'poll_media')
             );
-        }
-        if ($description !== null) {
+        if ($description !== null)
             $payload['description'] = $description;
-        }
-        if ($descriptionEntities !== null) {
+        if ($descriptionEntities !== null)
             $payload['description_entities'] = json_encode($descriptionEntities);
-        }
-        if ($explanation !== null) {
+        if ($explanation !== null)
             $payload['explanation'] = $explanation;
-        }
-        if ($explanationEntities !== null) {
+        if ($explanationEntities !== null)
             $payload['explanation_entities'] = json_encode($explanationEntities);
-        }
-        if ($explanationMedia !== null) {
+        if ($explanationMedia !== null)
             $payload['explanation_media'] = json_encode(
                 $this->extractPollMediaAttachments($explanationMedia, $attachments, 'explanation_media')
             );
-        }
+        if ($allowsMultipleAnswers !== null)
+            $payload['allows_multiple_answers'] = $allowsMultipleAnswers;
+        if ($allowsRevoting !== null)
+            $payload['allows_revoting'] = $allowsRevoting;
+        if ($shuffleOptions !== null)
+            $payload['shuffle_options'] = $shuffleOptions;
+        if ($allowAddingOptions !== null)
+            $payload['allow_adding_options'] = $allowAddingOptions;
+        if ($hideResultsUntilCloses !== null)
+            $payload['hide_results_until_closes'] = $hideResultsUntilCloses;
+        if ($membersOnly !== null)
+            $payload['members_only'] = $membersOnly;
+        if ($countryCodes !== null)
+            $payload['country_codes'] = json_encode($countryCodes);
+        if ($correctOptionIds !== null)
+            $payload['correct_option_ids'] = json_encode($correctOptionIds);
+        if ($openPeriod !== null)
+            $payload['open_period'] = $openPeriod;
+        if ($closeDate !== null)
+            $payload['close_date'] = $closeDate;
+        if ($isClosed !== null)
+            $payload['is_closed'] = $isClosed;
+        if ($disableNotification !== null)
+            $payload['disable_notification'] = $disableNotification;
+        if ($protectContent !== null)
+            $payload['protect_content'] = $protectContent;
+        if ($allowPaidBroadcast !== null)
+            $payload['allow_paid_broadcast'] = $allowPaidBroadcast;
+        if ($messageEffectId !== null)
+            $payload['message_effect_id'] = $messageEffectId;
+        if ($replyParameters !== null)
+            $payload['reply_parameters'] = json_encode($replyParameters);
+        if ($keyboard !== null)
+            $payload['reply_markup'] = json_encode($keyboard);
+        if ($businessConnectionId !== null)
+            $payload['business_connection_id'] = $businessConnectionId;
+        if ($messageThreadId !== null)
+            $payload['message_thread_id'] = $messageThreadId;
 
-        if ($extraParams !== null) {
+        if ($extraParams !== null)
             $payload += $extraParams;
-        }
 
         return $attachments
             ? $this->requestWithFile('sendPoll', $payload, $attachments)
@@ -577,10 +756,19 @@ trait SendsMessages
     /**
      * Stop a running poll.
      */
-    public function stopPoll(int|string $chatId, int $messageId, ?array $extraParams = null): Future
-    {
+    public function stopPoll(
+        int|string $chatId,
+        int $messageId,
+        ?array $extraParams = null,
+        ?array $keyboard = null,
+        ?string $businessConnectionId = null
+    ): Future {
         $payload = ['chat_id' => $chatId, 'message_id' => $messageId];
-        return $this->request('stopPoll', $payload + ($extraParams ?? []));
+        if ($keyboard !== null)
+            $payload['reply_markup'] = json_encode($keyboard);
+        if ($businessConnectionId !== null)
+            $payload['business_connection_id'] = $businessConnectionId;
+        return $this->request('stopPoll', $extraParams ? array_merge($payload, $extraParams) : $payload);
     }
 
     /**
@@ -605,27 +793,39 @@ trait SendsMessages
             'title' => $title,
             'address' => $address,
         ];
-        if ($foursquareId !== null) {
+        if ($foursquareId !== null)
             $payload['foursquare_id'] = $foursquareId;
-        }
-        if ($foursquareType !== null) {
+        if ($foursquareType !== null)
             $payload['foursquare_type'] = $foursquareType;
-        }
-        if ($googlePlaceId !== null) {
+        if ($googlePlaceId !== null)
             $payload['google_place_id'] = $googlePlaceId;
-        }
-        if ($googlePlaceType !== null) {
+        if ($googlePlaceType !== null)
             $payload['google_place_type'] = $googlePlaceType;
-        }
         return $this->request('sendVenue', $payload + ($extraParams ?? []));
     }
 
     /**
      * Send live location.
      */
-    public function sendLocation(int|string $chatId, float $latitude, float $longitude, ?array $extraParams = null): Future
-    {
+    public function sendLocation(
+        int|string $chatId,
+        float $latitude,
+        float $longitude,
+        ?array $extraParams = null,
+        ?float $horizontalAccuracy = null,
+        ?int $livePeriod = null,
+        ?int $heading = null,
+        ?int $proximityAlertRadius = null
+    ): Future {
         $payload = ['chat_id' => $chatId, 'latitude' => $latitude, 'longitude' => $longitude];
+        if ($horizontalAccuracy !== null)
+            $payload['horizontal_accuracy'] = $horizontalAccuracy;
+        if ($livePeriod !== null)
+            $payload['live_period'] = $livePeriod;
+        if ($heading !== null)
+            $payload['heading'] = $heading;
+        if ($proximityAlertRadius !== null)
+            $payload['proximity_alert_radius'] = $proximityAlertRadius;
         return $this->request('sendLocation', $payload + ($extraParams ?? []));
     }
 
@@ -645,12 +845,10 @@ trait SendsMessages
             'phone_number' => $phoneNumber,
             'first_name' => $firstName,
         ];
-        if ($lastName !== null) {
+        if ($lastName !== null)
             $payload['last_name'] = $lastName;
-        }
-        if ($vcard !== null) {
+        if ($vcard !== null)
             $payload['vcard'] = $vcard;
-        }
         return $this->request('sendContact', $payload + ($extraParams ?? []));
     }
 }

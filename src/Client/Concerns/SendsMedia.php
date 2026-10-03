@@ -18,14 +18,53 @@ use Neili\Media;
 trait SendsMedia
 {
     /**
+     * Merge caption-related fields into a payload.
+     *
+     * Used by sendPhoto, sendVideo, sendAnimation, sendLivePhoto and
+     * sendPaidMedia, which all share the same caption grammar.
+     */
+    private function applyMediaCaption(
+        array $fields,
+        ?string $caption,
+        ?string $parseMode,
+        ?array $captionEntities,
+        ?bool $showCaptionAboveMedia
+    ): array {
+        if ($caption !== null) {
+            $fields['caption'] = $caption;
+        }
+        if ($parseMode !== null) {
+            $fields['parse_mode'] = $parseMode;
+        }
+        if ($captionEntities !== null) {
+            $fields['caption_entities'] = json_encode($captionEntities);
+        }
+        if ($showCaptionAboveMedia !== null) {
+            $fields['show_caption_above_media'] = $showCaptionAboveMedia;
+        }
+        return $fields;
+    }
+
+    /**
      * Send photo.
      * Supports both Media object or URL/file_id string.
      */
-    public function sendPhoto(int|string $chatId, string|Media $photo, ?string $caption = null, ?array $keyboard = null, ?array $extraParams = null): Future
-    {
+    public function sendPhoto(
+        int|string $chatId,
+        string|Media $photo,
+        ?string $caption = null,
+        ?array $keyboard = null,
+        ?array $extraParams = null,
+        ?string $parseMode = null,
+        ?array $captionEntities = null,
+        ?bool $showCaptionAboveMedia = null,
+        ?bool $hasSpoiler = null
+    ): Future {
         $fields = ['chat_id' => $chatId];
-        if ($caption !== null)
-            $fields['caption'] = $caption;
+        $fields = $this->applyMediaCaption($fields, $caption, $parseMode, $captionEntities, $showCaptionAboveMedia);
+
+        if ($hasSpoiler !== null)
+            $fields['has_spoiler'] = $hasSpoiler;
         if ($keyboard !== null)
             $fields['reply_markup'] = json_encode($keyboard);
         if ($extraParams !== null)
@@ -47,18 +86,21 @@ trait SendsMedia
         string|Media $photo,
         ?string $caption = null,
         ?array $keyboard = null,
-        ?array $extraParams = null
+        ?array $extraParams = null,
+        ?string $parseMode = null,
+        ?array $captionEntities = null,
+        ?bool $showCaptionAboveMedia = null,
+        ?bool $hasSpoiler = null
     ): Future {
         $fields = ['chat_id' => $chatId];
-        if ($caption !== null) {
-            $fields['caption'] = $caption;
-        }
-        if ($keyboard !== null) {
+        $fields = $this->applyMediaCaption($fields, $caption, $parseMode, $captionEntities, $showCaptionAboveMedia);
+
+        if ($hasSpoiler !== null)
+            $fields['has_spoiler'] = $hasSpoiler;
+        if ($keyboard !== null)
             $fields['reply_markup'] = json_encode($keyboard);
-        }
-        if ($extraParams !== null) {
+        if ($extraParams !== null)
             $fields = array_merge($fields, $extraParams);
-        }
 
         $files = [];
         if ($livePhoto instanceof Media) {
@@ -80,13 +122,9 @@ trait SendsMedia
     /**
      * Send paid media.
      *
-     * Each element of $media may be:
-     *   - a Media object (uploaded via multipart/form-data and referenced
-     *     with an attach:// key),
-     *   - an InputPaidMedia array,
-     *   - a string (file_id / URL).
-     *
      * @param array $media Array of InputPaidMedia
+     * @param array|null $replyParameters          ReplyParameters payload
+     * @param array|null $suggestedPostParameters  SuggestedPostParameters payload
      */
     public function sendPaidMedia(
         int|string $chatId,
@@ -96,27 +134,40 @@ trait SendsMedia
         ?string $payload = null,
         ?bool $disableNotification = null,
         ?bool $protectContent = null,
-        ?array $extraParams = null
+        ?array $extraParams = null,
+        ?string $parseMode = null,
+        ?array $captionEntities = null,
+        ?bool $showCaptionAboveMedia = null,
+        ?array $replyParameters = null,
+        ?array $suggestedPostParameters = null,
+        ?string $businessConnectionId = null,
+        ?int $messageThreadId = null,
+        ?int $directMessagesTopicId = null
     ): Future {
         $fields = [
             'chat_id' => $chatId,
             'star_count' => $starCount,
         ];
-        if ($caption !== null) {
-            $fields['caption'] = $caption;
-        }
-        if ($payload !== null) {
+        $fields = $this->applyMediaCaption($fields, $caption, $parseMode, $captionEntities, $showCaptionAboveMedia);
+
+        if ($payload !== null)
             $fields['payload'] = $payload;
-        }
-        if ($disableNotification !== null) {
+        if ($disableNotification !== null)
             $fields['disable_notification'] = $disableNotification;
-        }
-        if ($protectContent !== null) {
+        if ($protectContent !== null)
             $fields['protect_content'] = $protectContent;
-        }
-        if ($extraParams !== null) {
+        if ($replyParameters !== null)
+            $fields['reply_parameters'] = json_encode($replyParameters);
+        if ($suggestedPostParameters !== null)
+            $fields['suggested_post_parameters'] = json_encode($suggestedPostParameters);
+        if ($businessConnectionId !== null)
+            $fields['business_connection_id'] = $businessConnectionId;
+        if ($messageThreadId !== null)
+            $fields['message_thread_id'] = $messageThreadId;
+        if ($directMessagesTopicId !== null)
+            $fields['direct_messages_topic_id'] = $directMessagesTopicId;
+        if ($extraParams !== null)
             $fields = array_merge($fields, $extraParams);
-        }
 
         $attachments = [];
         $normalized = [];
@@ -152,94 +203,228 @@ trait SendsMedia
 
     /**
      * Send video.
-     * Supports Media object for file upload or string for URL/file_id.
      */
-    public function sendVideo(int|string $chatId, string|Media $video, ?string $caption = null, ?array $keyboard = null, ?array $extraParams = null): Future
-    {
+    public function sendVideo(
+        int|string $chatId,
+        string|Media $video,
+        ?string $caption = null,
+        ?array $keyboard = null,
+        ?array $extraParams = null,
+        ?string $parseMode = null,
+        ?array $captionEntities = null,
+        ?bool $showCaptionAboveMedia = null,
+        ?bool $hasSpoiler = null,
+        ?int $duration = null,
+        ?int $width = null,
+        ?int $height = null,
+        Media|string|null $thumbnail = null,
+        Media|string|null $cover = null,
+        ?int $startTimestamp = null,
+        ?bool $supportsStreaming = null
+    ): Future {
         $fields = ['chat_id' => $chatId];
-        if ($caption !== null)
-            $fields['caption'] = $caption;
+        $fields = $this->applyMediaCaption($fields, $caption, $parseMode, $captionEntities, $showCaptionAboveMedia);
+
+        if ($hasSpoiler !== null)
+            $fields['has_spoiler'] = $hasSpoiler;
+        if ($duration !== null)
+            $fields['duration'] = $duration;
+        if ($width !== null)
+            $fields['width'] = $width;
+        if ($height !== null)
+            $fields['height'] = $height;
+        if ($startTimestamp !== null)
+            $fields['start_timestamp'] = $startTimestamp;
+        if ($supportsStreaming !== null)
+            $fields['supports_streaming'] = $supportsStreaming;
         if ($keyboard !== null)
             $fields['reply_markup'] = json_encode($keyboard);
         if ($extraParams !== null)
             $fields = array_merge($fields, $extraParams);
 
-        if ($video instanceof Media)
-            return $this->requestWithFile('sendVideo', $fields, ['video' => $video->filePath]);
+        $files = [];
+        if ($thumbnail instanceof Media) {
+            $files['thumbnail'] = $thumbnail->filePath;
+        } elseif ($thumbnail !== null) {
+            $fields['thumbnail'] = $thumbnail;
+        }
 
-        $fields['video'] = $video;
-        return $this->request('sendVideo', $fields);
+        if ($cover instanceof Media) {
+            $files['cover'] = $cover->filePath;
+        } elseif ($cover !== null) {
+            $fields['cover'] = $cover;
+        }
+
+        if ($video instanceof Media) {
+            $files['video'] = $video->filePath;
+        } else {
+            $fields['video'] = $video;
+        }
+
+        return $files
+            ? $this->requestWithFile('sendVideo', $fields, $files)
+            : $this->request('sendVideo', $fields);
     }
 
     /**
      * Send audio (music or voice).
      */
-    public function sendAudio(int|string $chatId, string|Media $audio, ?string $caption = null, ?array $keyboard = null, ?array $extraParams = null): Future
-    {
+    public function sendAudio(
+        int|string $chatId,
+        string|Media $audio,
+        ?string $caption = null,
+        ?array $keyboard = null,
+        ?array $extraParams = null,
+        ?string $parseMode = null,
+        ?array $captionEntities = null,
+        ?int $duration = null,
+        ?string $performer = null,
+        ?string $title = null,
+        Media|string|null $thumbnail = null
+    ): Future {
         $fields = ['chat_id' => $chatId];
-        if ($caption !== null)
-            $fields['caption'] = $caption;
+        $fields = $this->applyMediaCaption($fields, $caption, $parseMode, $captionEntities, null);
+
+        if ($duration !== null)
+            $fields['duration'] = $duration;
+        if ($performer !== null)
+            $fields['performer'] = $performer;
+        if ($title !== null)
+            $fields['title'] = $title;
         if ($keyboard !== null)
             $fields['reply_markup'] = json_encode($keyboard);
         if ($extraParams !== null)
             $fields = array_merge($fields, $extraParams);
 
-        if ($audio instanceof Media)
-            return $this->requestWithFile('sendAudio', $fields, ['audio' => $audio->filePath]);
+        $files = [];
+        if ($thumbnail instanceof Media) {
+            $files['thumbnail'] = $thumbnail->filePath;
+        } elseif ($thumbnail !== null) {
+            $fields['thumbnail'] = $thumbnail;
+        }
 
-        $fields['audio'] = $audio;
-        return $this->request('sendAudio', $fields);
+        if ($audio instanceof Media) {
+            $files['audio'] = $audio->filePath;
+        } else {
+            $fields['audio'] = $audio;
+        }
+
+        return $files
+            ? $this->requestWithFile('sendAudio', $fields, $files)
+            : $this->request('sendAudio', $fields);
     }
 
     /**
      * Send document (pdf, zip, etc).
      */
-    public function sendDocument(int|string $chatId, string|Media $document, ?string $caption = null, ?array $keyboard = null, ?array $extraParams = null): Future
-    {
+    public function sendDocument(
+        int|string $chatId,
+        string|Media $document,
+        ?string $caption = null,
+        ?array $keyboard = null,
+        ?array $extraParams = null,
+        ?string $parseMode = null,
+        ?array $captionEntities = null,
+        Media|string|null $thumbnail = null,
+        ?bool $disableContentTypeDetection = null
+    ): Future {
         $fields = ['chat_id' => $chatId];
-        if ($caption !== null)
-            $fields['caption'] = $caption;
+        $fields = $this->applyMediaCaption($fields, $caption, $parseMode, $captionEntities, null);
+
+        if ($disableContentTypeDetection !== null)
+            $fields['disable_content_type_detection'] = $disableContentTypeDetection;
         if ($keyboard !== null)
             $fields['reply_markup'] = json_encode($keyboard);
         if ($extraParams !== null)
             $fields = array_merge($fields, $extraParams);
 
-        if ($document instanceof Media)
-            return $this->requestWithFile('sendDocument', $fields, ['document' => $document->filePath]);
+        $files = [];
+        if ($thumbnail instanceof Media) {
+            $files['thumbnail'] = $thumbnail->filePath;
+        } elseif ($thumbnail !== null) {
+            $fields['thumbnail'] = $thumbnail;
+        }
 
-        $fields['document'] = $document;
-        return $this->request('sendDocument', $fields);
+        if ($document instanceof Media) {
+            $files['document'] = $document->filePath;
+        } else {
+            $fields['document'] = $document;
+        }
+
+        return $files
+            ? $this->requestWithFile('sendDocument', $fields, $files)
+            : $this->request('sendDocument', $fields);
     }
 
     /**
      * Send animation (GIF).
      */
-    public function sendAnimation(int|string $chatId, string|Media $animation, ?string $caption = null, ?array $keyboard = null, ?array $extraParams = null): Future
-    {
+    public function sendAnimation(
+        int|string $chatId,
+        string|Media $animation,
+        ?string $caption = null,
+        ?array $keyboard = null,
+        ?array $extraParams = null,
+        ?string $parseMode = null,
+        ?array $captionEntities = null,
+        ?bool $showCaptionAboveMedia = null,
+        ?bool $hasSpoiler = null,
+        ?int $duration = null,
+        ?int $width = null,
+        ?int $height = null,
+        Media|string|null $thumbnail = null
+    ): Future {
         $fields = ['chat_id' => $chatId];
-        if ($caption !== null)
-            $fields['caption'] = $caption;
+        $fields = $this->applyMediaCaption($fields, $caption, $parseMode, $captionEntities, $showCaptionAboveMedia);
+
+        if ($hasSpoiler !== null)
+            $fields['has_spoiler'] = $hasSpoiler;
+        if ($duration !== null)
+            $fields['duration'] = $duration;
+        if ($width !== null)
+            $fields['width'] = $width;
+        if ($height !== null)
+            $fields['height'] = $height;
         if ($keyboard !== null)
             $fields['reply_markup'] = json_encode($keyboard);
         if ($extraParams !== null)
             $fields = array_merge($fields, $extraParams);
 
-        if ($animation instanceof Media)
-            return $this->requestWithFile('sendAnimation', $fields, ['animation' => $animation->filePath]);
+        $files = [];
+        if ($thumbnail instanceof Media) {
+            $files['thumbnail'] = $thumbnail->filePath;
+        } elseif ($thumbnail !== null) {
+            $fields['thumbnail'] = $thumbnail;
+        }
 
-        $fields['animation'] = $animation;
-        return $this->request('sendAnimation', $fields);
+        if ($animation instanceof Media) {
+            $files['animation'] = $animation->filePath;
+        } else {
+            $fields['animation'] = $animation;
+        }
+
+        return $files
+            ? $this->requestWithFile('sendAnimation', $fields, $files)
+            : $this->request('sendAnimation', $fields);
     }
 
     /**
      * Send sticker.
+     *
+     * @param string|null $emoji Emoji associated with the sticker; only for just uploaded stickers
      */
-    public function sendSticker(int|string $chatId, string|Media $sticker, ?array $extraParams = null): Future
-    {
+    public function sendSticker(
+        int|string $chatId,
+        string|Media $sticker,
+        ?string $emoji = null,
+        ?array $extraParams = null
+    ): Future {
         $fields = ['chat_id' => $chatId];
-        if ($extraParams !== null) {
+
+        if ($emoji !== null)
+            $fields['emoji'] = $emoji;
+        if ($extraParams !== null)
             $fields = array_merge($fields, $extraParams);
-        }
 
         if ($sticker instanceof Media) {
             return $this->requestWithFile('sendSticker', $fields, ['sticker' => $sticker->filePath]);
@@ -257,21 +442,20 @@ trait SendsMedia
         string|Media $voice,
         ?string $caption = null,
         ?array $keyboard = null,
-        ?array $extraParams = null
+        ?array $extraParams = null,
+        ?string $parseMode = null,
+        ?array $captionEntities = null,
+        ?int $duration = null
     ): Future {
         $fields = ['chat_id' => $chatId];
+        $fields = $this->applyMediaCaption($fields, $caption, $parseMode, $captionEntities, null);
 
-        if ($caption !== null) {
-            $fields['caption'] = $caption;
-        }
-
-        if ($keyboard !== null) {
+        if ($duration !== null)
+            $fields['duration'] = $duration;
+        if ($keyboard !== null)
             $fields['reply_markup'] = json_encode($keyboard);
-        }
-
-        if ($extraParams !== null) {
+        if ($extraParams !== null)
             $fields = array_merge($fields, $extraParams);
-        }
 
         if ($voice instanceof Media) {
             return $this->requestWithFile('sendVoice', $fields, ['voice' => $voice->filePath]);
@@ -288,31 +472,42 @@ trait SendsMedia
         int|string $chatId,
         string|Media $videoNote,
         ?array $keyboard = null,
-        ?array $extraParams = null
+        ?array $extraParams = null,
+        ?int $duration = null,
+        ?int $length = null,
+        Media|string|null $thumbnail = null
     ): Future {
         $fields = ['chat_id' => $chatId];
 
-        if ($keyboard !== null) {
+        if ($duration !== null)
+            $fields['duration'] = $duration;
+        if ($length !== null)
+            $fields['length'] = $length;
+        if ($keyboard !== null)
             $fields['reply_markup'] = json_encode($keyboard);
-        }
-
-        if ($extraParams !== null) {
+        if ($extraParams !== null)
             $fields = array_merge($fields, $extraParams);
+
+        $files = [];
+        if ($thumbnail instanceof Media) {
+            $files['thumbnail'] = $thumbnail->filePath;
+        } elseif ($thumbnail !== null) {
+            $fields['thumbnail'] = $thumbnail;
         }
 
         if ($videoNote instanceof Media) {
-            return $this->requestWithFile('sendVideoNote', $fields, ['video_note' => $videoNote->filePath]);
+            $files['video_note'] = $videoNote->filePath;
+        } else {
+            $fields['video_note'] = $videoNote;
         }
 
-        $fields['video_note'] = $videoNote;
-        return $this->request('sendVideoNote', $fields);
+        return $files
+            ? $this->requestWithFile('sendVideoNote', $fields, $files)
+            : $this->request('sendVideoNote', $fields);
     }
 
     /**
      * Send a group of photos, videos, documents or audios as an album.
-     *
-     * $replyParameters follows the modern ReplyParameters object (Bot API
-     * 7.0+). The legacy reply_to_message_id is no longer used.
      *
      * @param array $mediaItems Array of Media, strings, or InputMedia arrays
      * @param array|null $replyParameters ReplyParameters payload
@@ -323,7 +518,13 @@ trait SendsMedia
         ?string $caption = null,
         ?bool $disableNotification = null,
         ?array $replyParameters = null,
-        ?array $extraParams = null
+        ?array $extraParams = null,
+        ?bool $protectContent = null,
+        ?bool $allowPaidBroadcast = null,
+        ?string $messageEffectId = null,
+        ?string $businessConnectionId = null,
+        ?int $messageThreadId = null,
+        ?int $directMessagesTopicId = null
     ): Future {
         $inputMedia = [];
         $attachments = [];
@@ -382,13 +583,22 @@ trait SendsMedia
             'media' => json_encode($inputMedia),
         ];
 
-        if ($disableNotification !== null) {
+        if ($disableNotification !== null)
             $payload['disable_notification'] = $disableNotification;
-        }
-
-        if ($replyParameters !== null) {
+        if ($replyParameters !== null)
             $payload['reply_parameters'] = json_encode($replyParameters);
-        }
+        if ($protectContent !== null)
+            $payload['protect_content'] = $protectContent;
+        if ($allowPaidBroadcast !== null)
+            $payload['allow_paid_broadcast'] = $allowPaidBroadcast;
+        if ($messageEffectId !== null)
+            $payload['message_effect_id'] = $messageEffectId;
+        if ($businessConnectionId !== null)
+            $payload['business_connection_id'] = $businessConnectionId;
+        if ($messageThreadId !== null)
+            $payload['message_thread_id'] = $messageThreadId;
+        if ($directMessagesTopicId !== null)
+            $payload['direct_messages_topic_id'] = $directMessagesTopicId;
 
         if ($extraParams) {
             $payload += $extraParams;
@@ -399,6 +609,9 @@ trait SendsMedia
             : $this->request('sendMediaGroup', $payload);
     }
 
+    /**
+     * Detect the media type from a file extension for sendMediaGroup.
+     */
     private function detectMediaType(string $path): string
     {
         $ext = strtolower(pathinfo($path, PATHINFO_EXTENSION));
