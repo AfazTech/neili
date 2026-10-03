@@ -12,6 +12,7 @@ declare(strict_types=1);
 namespace Neili\Client\Concerns;
 
 use Amp\Future;
+use Neili\Media;
 
 trait HandlesEphemeralMessages
 {
@@ -61,6 +62,10 @@ trait HandlesEphemeralMessages
     /**
      * Edit the media of an ephemeral message.
      *
+     * Any Media object embedded in the InputMedia payload (under the media,
+     * photo, thumbnail, or cover fields) is uploaded via multipart/form-data
+     * and referenced with an attach:// key.
+     *
      * @param array $media InputMedia payload
      */
     public function editEphemeralMessageMedia(
@@ -75,12 +80,23 @@ trait HandlesEphemeralMessages
             'chat_id' => $chatId,
             'receiver_user_id' => $receiverUserId,
             'ephemeral_message_id' => $ephemeralMessageId,
-            'media' => json_encode($media),
         ];
+
         if ($keyboard !== null) {
             $payload['reply_markup'] = json_encode($keyboard);
         }
-        return $this->request('editEphemeralMessageMedia', $extraParams ? array_merge($payload, $extraParams) : $payload);
+
+        $attachments = [];
+        $normalizedMedia = $this->extractMediaAttachments($media, $attachments);
+        $payload['media'] = json_encode($normalizedMedia);
+
+        if ($extraParams !== null) {
+            $payload = array_merge($payload, $extraParams);
+        }
+
+        return $attachments
+            ? $this->requestWithFile('editEphemeralMessageMedia', $payload, $attachments)
+            : $this->request('editEphemeralMessageMedia', $payload);
     }
 
     /**

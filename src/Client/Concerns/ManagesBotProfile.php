@@ -240,10 +240,22 @@ trait ManagesBotProfile
 
     /**
      * Change the bot's profile photo.
+     *
+     * Accepts either a Media object (uploaded via multipart/form-data) or a
+     * pre-built InputProfilePhoto array. When a Media object is given, the
+     * file extension decides between the "static" (JPG) and "animated"
+     * (MPEG4) InputProfilePhoto variants.
+     *
+     * @param Media|array $photo
      */
-    public function setMyProfilePhoto(Media $photo): Future
+    public function setMyProfilePhoto(Media|array $photo): Future
     {
-        return $this->requestWithFile('setMyProfilePhoto', [], ['photo' => $photo->filePath]);
+        [$payload, $files] = $this->buildInputProfilePhoto($photo);
+        $fields = ['photo' => json_encode($payload)];
+
+        return $files
+            ? $this->requestWithFile('setMyProfilePhoto', $fields, $files)
+            : $this->request('setMyProfilePhoto', $fields);
     }
 
     /**

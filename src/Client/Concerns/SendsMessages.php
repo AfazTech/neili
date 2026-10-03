@@ -13,6 +13,7 @@ namespace Neili\Client\Concerns;
 
 use Amp\Future;
 use InvalidArgumentException;
+use Neili\Media;
 
 trait SendsMessages
 {
@@ -96,7 +97,13 @@ trait SendsMessages
     }
 
     /**
-     * Edit animation, audio, document, live photo, photo, or video messages.
+     * Edit animation, audio, document, live photo, photo, or video messages,
+     * or replace a text message with media.
+     *
+     * Any Media object embedded in the InputMedia payload (under the media,
+     * photo, thumbnail, or cover fields) is uploaded via multipart/form-data
+     * and referenced with an attach:// key. For inline messages, only
+     * previously uploaded files (file_id) or HTTP URLs may be used.
      *
      * @param array $media InputMedia payload
      */
@@ -108,9 +115,7 @@ trait SendsMessages
         ?array $extraParams = null,
         ?string $inlineMessageId = null
     ): Future {
-        $payload = [
-            'media' => json_encode($media),
-        ];
+        $payload = [];
 
         if ($inlineMessageId !== null) {
             $payload['inline_message_id'] = $inlineMessageId;
@@ -123,7 +128,17 @@ trait SendsMessages
             $payload['reply_markup'] = json_encode($keyboard);
         }
 
-        return $this->request('editMessageMedia', $extraParams ? array_merge($payload, $extraParams) : $payload);
+        $attachments = [];
+        $normalizedMedia = $this->extractMediaAttachments($media, $attachments);
+        $payload['media'] = json_encode($normalizedMedia);
+
+        if ($extraParams !== null) {
+            $payload = array_merge($payload, $extraParams);
+        }
+
+        return $attachments
+            ? $this->requestWithFile('editMessageMedia', $payload, $attachments)
+            : $this->request('editMessageMedia', $payload);
     }
 
     /**

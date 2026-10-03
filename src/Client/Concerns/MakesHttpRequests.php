@@ -18,6 +18,7 @@ use Neili\Exceptions\NeiliException;
 use Neili\Exceptions\PermanentException;
 use Neili\Exceptions\RateLimitException;
 use Neili\Exceptions\TransientException;
+use Neili\Media;
 use function Amp\async;
 
 trait MakesHttpRequests
@@ -64,6 +65,84 @@ trait MakesHttpRequests
         $request->setTransferTimeout($timeout);
         $request->setInactivityTimeout($timeout);
         $request->setTcpConnectTimeout((float) $this->settings->getConnectionTimeout());
+    }
+
+    /**
+     * Build an InputProfilePhoto payload and companion files array.
+     *
+     * Accepts either a Media object (which is uploaded via
+     * multipart/form-data and referenced with "attach://...") or a
+     * pre-built InputProfilePhoto array which is passed through untouched.
+     *
+     * Animated profile photos (MPEG4) use the "animated" variant, any other
+     * extension is treated as a static (JPG) profile photo, as required by
+     * the Telegram Bot API.
+     *
+     * @param array|Media $photo
+     * @return array Tuple of [payload, files]
+     */
+    private function buildInputProfilePhoto(array|Media $photo): array
+    {
+        if (!($photo instanceof Media)) {
+            return [$photo, []];
+        }
+
+        $extension = strtolower(pathinfo($photo->filePath, PATHINFO_EXTENSION));
+        $isAnimated = in_array($extension, ['mp4', 'mov', 'mpeg', 'mpg'], true);
+        $attachKey = 'profile_photo_file';
+        $files = [$attachKey => $photo->filePath];
+
+        if ($isAnimated) {
+            return [
+                [
+                    'type' => 'animated',
+                    'animation' => 'attach://' . $attachKey,
+                ],
+                $files,
+            ];
+        }
+
+        return [
+            [
+                'type' => 'static',
+                'photo' => 'attach://' . $attachKey,
+            ],
+            $files,
+        ];
+    }
+
+    /**
+     * Replace Media objects inside an InputMedia payload with
+     * "attach://<key>" references, collecting the corresponding local files
+     * into the provided $attachments map (by reference).
+     *
+     * The set of fields scanned covers every InputMedia variant defined by
+     * the Telegram Bot API which can carry a binary payload: media, photo,
+     * thumbnail, and cover.
+     *
+     * @param array $media InputMedia payload
+     * @param array $attachments File map populated by reference
+     * @return array Normalized InputMedia payload
+     */
+    private function extractMediaAttachments(array $media, array &$attachments): array
+    {
+        foreach (['media', 'photo', 'thumbnail', 'cover'] as $field) {
+            if (!isset($media[$field]) || !($media[$field] instanceof Media)) {
+                continue;
+            }
+
+            $attachKey = 'file_' . $field;
+            $suffix = 0;
+            while (isset($attachments[$attachKey])) {
+                $suffix++;
+                $attachKey = 'file_' . $field . '_' . $suffix;
+            }
+
+            $attachments[$attachKey] = $media[$field]->filePath;
+            $media[$field] = 'attach://' . $attachKey;
+        }
+
+        return $media;
     }
 
     /**
