@@ -18,10 +18,10 @@ use Neili\Media;
 trait SendsMedia
 {
     /**
-     * Send photo
-     * Supports both Media object or URL/file_id string
+     * Send photo.
+     * Supports both Media object or URL/file_id string.
      */
-    public function sendPhoto(int $chatId, string|Media $photo, ?string $caption = null, ?array $keyboard = null, ?array $extraParams = null): Future
+    public function sendPhoto(int|string $chatId, string|Media $photo, ?string $caption = null, ?array $keyboard = null, ?array $extraParams = null): Future
     {
         $fields = ['chat_id' => $chatId];
         if ($caption !== null)
@@ -42,7 +42,7 @@ trait SendsMedia
      * Send live photo (static photo + short video).
      */
     public function sendLivePhoto(
-        int $chatId,
+        int|string $chatId,
         string|Media $livePhoto,
         string|Media $photo,
         ?string $caption = null,
@@ -151,10 +151,10 @@ trait SendsMedia
     }
 
     /**
-     * Send video
-     * Supports Media object for file upload or string for URL/file_id
+     * Send video.
+     * Supports Media object for file upload or string for URL/file_id.
      */
-    public function sendVideo(int $chatId, string|Media $video, ?string $caption = null, ?array $keyboard = null, ?array $extraParams = null): Future
+    public function sendVideo(int|string $chatId, string|Media $video, ?string $caption = null, ?array $keyboard = null, ?array $extraParams = null): Future
     {
         $fields = ['chat_id' => $chatId];
         if ($caption !== null)
@@ -172,9 +172,9 @@ trait SendsMedia
     }
 
     /**
-     * Send audio (music or voice)
+     * Send audio (music or voice).
      */
-    public function sendAudio(int $chatId, string|Media $audio, ?string $caption = null, ?array $keyboard = null, ?array $extraParams = null): Future
+    public function sendAudio(int|string $chatId, string|Media $audio, ?string $caption = null, ?array $keyboard = null, ?array $extraParams = null): Future
     {
         $fields = ['chat_id' => $chatId];
         if ($caption !== null)
@@ -192,9 +192,9 @@ trait SendsMedia
     }
 
     /**
-     * Send document (pdf, zip, etc)
+     * Send document (pdf, zip, etc).
      */
-    public function sendDocument(int $chatId, string|Media $document, ?string $caption = null, ?array $keyboard = null, ?array $extraParams = null): Future
+    public function sendDocument(int|string $chatId, string|Media $document, ?string $caption = null, ?array $keyboard = null, ?array $extraParams = null): Future
     {
         $fields = ['chat_id' => $chatId];
         if ($caption !== null)
@@ -212,9 +212,9 @@ trait SendsMedia
     }
 
     /**
-     * Send animation (GIF)
+     * Send animation (GIF).
      */
-    public function sendAnimation(int $chatId, string|Media $animation, ?string $caption = null, ?array $keyboard = null, ?array $extraParams = null): Future
+    public function sendAnimation(int|string $chatId, string|Media $animation, ?string $caption = null, ?array $keyboard = null, ?array $extraParams = null): Future
     {
         $fields = ['chat_id' => $chatId];
         if ($caption !== null)
@@ -238,7 +238,7 @@ trait SendsMedia
      * or passing a file_id / HTTP URL as a string.
      * Video and animated stickers can't be sent via an HTTP URL.
      */
-    public function sendSticker(int $chatId, string|Media $sticker, ?array $extraParams = null): Future
+    public function sendSticker(int|string $chatId, string|Media $sticker, ?array $extraParams = null): Future
     {
         $fields = ['chat_id' => $chatId];
         if ($extraParams !== null) {
@@ -257,7 +257,7 @@ trait SendsMedia
      * Send voice messages.
      */
     public function sendVoice(
-        int $chatId,
+        int|string $chatId,
         string|Media $voice,
         ?string $caption = null,
         ?array $keyboard = null,
@@ -289,7 +289,7 @@ trait SendsMedia
      * Send video notes (round videos).
      */
     public function sendVideoNote(
-        int $chatId,
+        int|string $chatId,
         string|Media $videoNote,
         ?array $keyboard = null,
         ?array $extraParams = null
@@ -316,7 +316,7 @@ trait SendsMedia
      * Send a group of photos, videos, documents or audios as an album.
      */
     public function sendMediaGroup(
-        int $chatId,
+        int|string $chatId,
         array $mediaItems,
         ?string $caption = null,
         ?bool $disableNotification = null,

@@ -13,14 +13,13 @@ namespace Neili\Client\Concerns;
 
 use Amp\Future;
 use InvalidArgumentException;
-use Neili\Media;
 
 trait SendsMessages
 {
     /**
-     * Send text message
+     * Send text message.
      */
-    public function sendMessage(int $chatId, string $text, ?array $keyboard = null, ?array $extraParams = null): Future
+    public function sendMessage(int|string $chatId, string $text, ?array $keyboard = null, ?array $extraParams = null): Future
     {
         $payload = ['chat_id' => $chatId, 'text' => $text];
         if ($keyboard !== null)
@@ -30,9 +29,9 @@ trait SendsMessages
     }
 
     /**
-     * Reply to a specific message
+     * Reply to a specific message.
      */
-    public function reply(int $chatId, int $replyToMessageId, string $text, ?array $keyboard = null, ?array $extraParams = null): Future
+    public function reply(int|string $chatId, int $replyToMessageId, string $text, ?array $keyboard = null, ?array $extraParams = null): Future
     {
         $payload = ['chat_id' => $chatId, 'text' => $text, 'reply_to_message_id' => $replyToMessageId];
         if ($keyboard !== null)
@@ -194,9 +193,9 @@ trait SendsMessages
     }
 
     /**
-     * Delete message
+     * Delete message.
      */
-    public function deleteMessage(int $chatId, int $messageId): Future
+    public function deleteMessage(int|string $chatId, int $messageId): Future
     {
         return $this->request('deleteMessage', ['chat_id' => $chatId, 'message_id' => $messageId]);
     }
@@ -206,7 +205,7 @@ trait SendsMessages
      *
      * @param array<int> $messageIds
      */
-    public function deleteMessages(int $chatId, array $messageIds): Future
+    public function deleteMessages(int|string $chatId, array $messageIds): Future
     {
         return $this->request('deleteMessages', [
             'chat_id' => $chatId,
@@ -215,9 +214,9 @@ trait SendsMessages
     }
 
     /**
-     * Forward message from one chat to another
+     * Forward message from one chat to another.
      */
-    public function forwardMessage(int $chatId, int $fromChatId, int $messageId, ?array $extraParams = null): Future
+    public function forwardMessage(int|string $chatId, int|string $fromChatId, int $messageId, ?array $extraParams = null): Future
     {
         $payload = ['chat_id' => $chatId, 'from_chat_id' => $fromChatId, 'message_id' => $messageId];
         return $this->request('forwardMessage', $extraParams ? array_merge($payload, $extraParams) : $payload);
@@ -229,8 +228,8 @@ trait SendsMessages
      * @param array<int> $messageIds
      */
     public function forwardMessages(
-        int $chatId,
-        int $fromChatId,
+        int|string $chatId,
+        int|string $fromChatId,
         array $messageIds,
         ?bool $disableNotification = null,
         ?bool $protectContent = null,
@@ -255,8 +254,8 @@ trait SendsMessages
      * Service messages and invoice messages can't be copied.
      */
     public function copyMessage(
-        int $chatId,
-        int $fromChatId,
+        int|string $chatId,
+        int|string $fromChatId,
         int $messageId,
         ?string $caption = null,
         ?array $keyboard = null,
@@ -285,8 +284,8 @@ trait SendsMessages
      * @param array<int> $messageIds
      */
     public function copyMessages(
-        int $chatId,
-        int $fromChatId,
+        int|string $chatId,
+        int|string $fromChatId,
         array $messageIds,
         ?bool $disableNotification = null,
         ?bool $protectContent = null,
@@ -402,17 +401,17 @@ trait SendsMessages
     }
 
     /**
-     * Send "typing", "upload_photo", etc. action indicator
+     * Send "typing", "upload_photo", etc. action indicator.
      */
-    public function sendChatAction(int $chatId, string $action): Future
+    public function sendChatAction(int|string $chatId, string $action): Future
     {
         return $this->request('sendChatAction', ['chat_id' => $chatId, 'action' => $action]);
     }
 
     /**
-     * Send dice animation
+     * Send dice animation.
      */
-    public function sendDice(int $chatId, ?string $emoji = null, ?array $extraParams = null): Future
+    public function sendDice(int|string $chatId, ?string $emoji = null, ?array $extraParams = null): Future
     {
         $payload = ['chat_id' => $chatId];
         if ($emoji !== null)
@@ -428,7 +427,7 @@ trait SendsMessages
      * Plain strings are normalised to ['text' => ...] before being sent.
      */
     public function sendPoll(
-        int $chatId,
+        int|string $chatId,
         string $question,
         array $options,
         ?bool $isAnonymous = true,
@@ -461,36 +460,36 @@ trait SendsMessages
     }
 
     /**
-     * Stop a running poll
+     * Stop a running poll.
      */
-    public function stopPoll(int $chatId, int $messageId, ?array $extraParams = null): Future
+    public function stopPoll(int|string $chatId, int $messageId, ?array $extraParams = null): Future
     {
         $payload = ['chat_id' => $chatId, 'message_id' => $messageId];
         return $this->request('stopPoll', $payload + ($extraParams ?? []));
     }
 
     /**
-     * Send venue location
+     * Send venue location.
      */
-    public function sendVenue(int $chatId, float $latitude, float $longitude, string $title, string $address, ?array $extraParams = null): Future
+    public function sendVenue(int|string $chatId, float $latitude, float $longitude, string $title, string $address, ?array $extraParams = null): Future
     {
         $payload = ['chat_id' => $chatId, 'latitude' => $latitude, 'longitude' => $longitude, 'title' => $title, 'address' => $address];
         return $this->request('sendVenue', $payload + ($extraParams ?? []));
     }
 
     /**
-     * Send live location
+     * Send live location.
      */
-    public function sendLocation(int $chatId, float $latitude, float $longitude, ?array $extraParams = null): Future
+    public function sendLocation(int|string $chatId, float $latitude, float $longitude, ?array $extraParams = null): Future
     {
         $payload = ['chat_id' => $chatId, 'latitude' => $latitude, 'longitude' => $longitude];
         return $this->request('sendLocation', $payload + ($extraParams ?? []));
     }
 
     /**
-     * Send contact info
+     * Send contact info.
      */
-    public function sendContact(int $chatId, string $phoneNumber, string $firstName, ?string $lastName = null, ?array $extraParams = null): Future
+    public function sendContact(int|string $chatId, string $phoneNumber, string $firstName, ?string $lastName = null, ?array $extraParams = null): Future
     {
         $payload = ['chat_id' => $chatId, 'phone_number' => $phoneNumber, 'first_name' => $firstName];
         if ($lastName !== null)

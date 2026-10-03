@@ -17,7 +17,7 @@ use Neili\Media;
 trait ManagesChats
 {
     /**
-     * Get chat info
+     * Get chat info.
      */
     public function getChat(int|string $chatId): Future
     {
@@ -25,27 +25,23 @@ trait ManagesChats
     }
 
     /**
-     * Get chat members count
-     */
-    public function getChatMembersCount(int $chatId): Future
-    {
-        return $this->request('getChatMembersCount', ['chat_id' => $chatId]);
-    }
-
-    /**
      * Get the number of members in a chat.
      */
-    public function getChatMemberCount(int $chatId): Future
+    public function getChatMemberCount(int|string $chatId): Future
     {
         return $this->request('getChatMemberCount', ['chat_id' => $chatId]);
     }
 
     /**
-     * Pin message in chat
+     * Pin message in chat.
      */
-    public function pinChatMessage(int $chatId, int $messageId, ?bool $disableNotification = false): Future
+    public function pinChatMessage(int|string $chatId, int $messageId, ?bool $disableNotification = false): Future
     {
-        return $this->request('pinChatMessage', ['chat_id' => $chatId, 'message_id' => $messageId, 'disable_notification' => $disableNotification]);
+        return $this->request('pinChatMessage', [
+            'chat_id' => $chatId,
+            'message_id' => $messageId,
+            'disable_notification' => $disableNotification,
+        ]);
     }
 
     /**
@@ -64,23 +60,23 @@ trait ManagesChats
     /**
      * Unpin all pinned messages in a chat.
      */
-    public function unpinAllChatMessages(int $chatId): Future
+    public function unpinAllChatMessages(int|string $chatId): Future
     {
         return $this->request('unpinAllChatMessages', ['chat_id' => $chatId]);
     }
 
     /**
-     * Set chat title
+     * Set chat title.
      */
-    public function setChatTitle(int $chatId, string $title): Future
+    public function setChatTitle(int|string $chatId, string $title): Future
     {
         return $this->request('setChatTitle', ['chat_id' => $chatId, 'title' => $title]);
     }
 
     /**
-     * Set chat description
+     * Set chat description.
      */
-    public function setChatDescription(int $chatId, string $description): Future
+    public function setChatDescription(int|string $chatId, string $description): Future
     {
         return $this->request('setChatDescription', ['chat_id' => $chatId, 'description' => $description]);
     }
@@ -97,7 +93,7 @@ trait ManagesChats
     /**
      * Delete a chat photo.
      */
-    public function deleteChatPhoto(int $chatId): Future
+    public function deleteChatPhoto(int|string $chatId): Future
     {
         return $this->request('deleteChatPhoto', ['chat_id' => $chatId]);
     }
@@ -105,41 +101,41 @@ trait ManagesChats
     /**
      * Leave a chat.
      */
-    public function leaveChat(int $chatId): Future
+    public function leaveChat(int|string $chatId): Future
     {
         return $this->request('leaveChat', ['chat_id' => $chatId]);
     }
 
     /**
-     * Set chat-wide permissions
+     * Set chat-wide permissions.
      */
-    public function setChatPermissions(int $chatId, array $permissions, ?array $extraParams = null): Future
+    public function setChatPermissions(int|string $chatId, array $permissions, ?array $extraParams = null): Future
     {
         $payload = ['chat_id' => $chatId, 'permissions' => json_encode($permissions)];
         return $this->request('setChatPermissions', $payload + ($extraParams ?? []));
     }
 
     /**
-     * Export chat invite link
+     * Export chat invite link.
      */
-    public function exportChatInviteLink(int $chatId): Future
+    public function exportChatInviteLink(int|string $chatId): Future
     {
         return $this->request('exportChatInviteLink', ['chat_id' => $chatId]);
     }
 
     /**
-     * Create a new invite link
+     * Create a new invite link.
      */
-    public function createChatInviteLink(int $chatId, ?array $extraParams = null): Future
+    public function createChatInviteLink(int|string $chatId, ?array $extraParams = null): Future
     {
         $payload = ['chat_id' => $chatId];
         return $this->request('createChatInviteLink', $payload + ($extraParams ?? []));
     }
 
     /**
-     * Edit an existing invite link
+     * Edit an existing invite link.
      */
-    public function editChatInviteLink(int $chatId, string $inviteLink, ?array $extraParams = null): Future
+    public function editChatInviteLink(int|string $chatId, string $inviteLink, ?array $extraParams = null): Future
     {
         $payload = ['chat_id' => $chatId, 'invite_link' => $inviteLink];
         return $this->request('editChatInviteLink', $payload + ($extraParams ?? []));
@@ -186,9 +182,9 @@ trait ManagesChats
     }
 
     /**
-     * Revoke an invite link
+     * Revoke an invite link.
      */
-    public function revokeChatInviteLink(int $chatId, string $inviteLink): Future
+    public function revokeChatInviteLink(int|string $chatId, string $inviteLink): Future
     {
         return $this->request('revokeChatInviteLink', ['chat_id' => $chatId, 'invite_link' => $inviteLink]);
     }
@@ -196,18 +192,18 @@ trait ManagesChats
     /**
      * Set group sticker set for a supergroup.
      */
-    public function setChatStickerSet(int $chatId, string $stickerSetName): Future
+    public function setChatStickerSet(int|string $chatId, string $stickerSetName): Future
     {
         return $this->request('setChatStickerSet', [
             'chat_id' => $chatId,
-            'sticker_set_name' => $stickerSetName
+            'sticker_set_name' => $stickerSetName,
         ]);
     }
 
     /**
      * Delete group sticker set from a supergroup.
      */
-    public function deleteChatStickerSet(int $chatId): Future
+    public function deleteChatStickerSet(int|string $chatId): Future
     {
         return $this->request('deleteChatStickerSet', ['chat_id' => $chatId]);
     }
