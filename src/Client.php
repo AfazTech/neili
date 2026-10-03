@@ -84,15 +84,16 @@ class Client
      * Constructor
      * Initializes the HTTP client and stores settings.
      *
-     * NOTE: In amphp/http-client v5 the transfer / connect timeouts are NOT
-     * configurable on HttpClientBuilder; they must be set per-Request.
-     * We therefore keep the builder at its defaults and apply Settings values
-     * on every Request created by request() / requestWithFile().
+     * If Settings carries an injected HttpClient (e.g. one built with a
+     * proxy, custom connector, or interceptors), that instance is used;
+     * otherwise the default builder is invoked. In amphp/http-client v5 the
+     * transfer / connect timeouts are NOT configurable on HttpClientBuilder,
+     * so they are applied per-Request by request() / requestWithFile().
      */
     public function __construct(Settings $settings)
     {
         $this->settings = $settings;
-        $this->httpClient = HttpClientBuilder::buildDefault();
+        $this->httpClient = $settings->getHttpClient() ?? HttpClientBuilder::buildDefault();
     }
 
     /**
@@ -101,6 +102,17 @@ class Client
     public function getSettings(): Settings
     {
         return $this->settings;
+    }
+
+    /**
+     * Replace the HTTP client at runtime.
+     *
+     * Provided so callers can rotate transport-level configuration (e.g.
+     * a failing proxy) without rebuilding the whole Neili client.
+     */
+    public function setHttpClient(HttpClient $client): void
+    {
+        $this->httpClient = $client;
     }
 
     /**
@@ -113,7 +125,7 @@ class Client
      */
     public function reconnect(): void
     {
-        $this->httpClient = HttpClientBuilder::buildDefault();
+        $this->httpClient = $this->settings->getHttpClient() ?? HttpClientBuilder::buildDefault();
     }
 
     /**

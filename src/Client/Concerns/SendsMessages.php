@@ -18,25 +18,91 @@ trait SendsMessages
 {
     /**
      * Send text message.
+     *
+     * The $replyParameters argument accepts a ReplyParameters payload; the
+     * legacy reply_to_message_id is intentionally not exposed, since the Bot
+     * API deprecates it in favor of ReplyParameters.
+     *
+     * @param array|null $replyParameters      ReplyParameters payload
+     * @param array|null $linkPreviewOptions   LinkPreviewOptions payload
+     * @param array|null $keyboard             Reply markup
      */
-    public function sendMessage(int|string $chatId, string $text, ?array $keyboard = null, ?array $extraParams = null): Future
-    {
+    public function sendMessage(
+        int|string $chatId,
+        string $text,
+        ?array $keyboard = null,
+        ?array $extraParams = null,
+        ?int $messageThreadId = null,
+        ?int $directMessagesTopicId = null,
+        ?array $replyParameters = null,
+        ?array $linkPreviewOptions = null,
+        ?bool $disableNotification = null,
+        ?bool $protectContent = null,
+        ?bool $allowPaidBroadcast = null,
+        ?string $messageEffectId = null,
+        ?string $businessConnectionId = null,
+        ?array $suggestedPostParameters = null
+    ): Future {
         $payload = ['chat_id' => $chatId, 'text' => $text];
-        if ($keyboard !== null)
+
+        if ($keyboard !== null) {
             $payload['reply_markup'] = json_encode($keyboard);
+        }
+        if ($messageThreadId !== null) {
+            $payload['message_thread_id'] = $messageThreadId;
+        }
+        if ($directMessagesTopicId !== null) {
+            $payload['direct_messages_topic_id'] = $directMessagesTopicId;
+        }
+        if ($replyParameters !== null) {
+            $payload['reply_parameters'] = json_encode($replyParameters);
+        }
+        if ($linkPreviewOptions !== null) {
+            $payload['link_preview_options'] = json_encode($linkPreviewOptions);
+        }
+        if ($disableNotification !== null) {
+            $payload['disable_notification'] = $disableNotification;
+        }
+        if ($protectContent !== null) {
+            $payload['protect_content'] = $protectContent;
+        }
+        if ($allowPaidBroadcast !== null) {
+            $payload['allow_paid_broadcast'] = $allowPaidBroadcast;
+        }
+        if ($messageEffectId !== null) {
+            $payload['message_effect_id'] = $messageEffectId;
+        }
+        if ($businessConnectionId !== null) {
+            $payload['business_connection_id'] = $businessConnectionId;
+        }
+        if ($suggestedPostParameters !== null) {
+            $payload['suggested_post_parameters'] = json_encode($suggestedPostParameters);
+        }
 
         return $this->request('sendMessage', $extraParams ? array_merge($payload, $extraParams) : $payload);
     }
 
     /**
      * Reply to a specific message.
+     *
+     * Uses ReplyParameters under the hood, matching current Bot API rules.
      */
-    public function reply(int|string $chatId, int $replyToMessageId, string $text, ?array $keyboard = null, ?array $extraParams = null): Future
-    {
-        $payload = ['chat_id' => $chatId, 'text' => $text, 'reply_to_message_id' => $replyToMessageId];
-        if ($keyboard !== null)
-            $payload['reply_markup'] = json_encode($keyboard);
-        return $this->request('sendMessage', $extraParams ? array_merge($payload, $extraParams) : $payload);
+    public function reply(
+        int|string $chatId,
+        int $replyToMessageId,
+        string $text,
+        ?array $keyboard = null,
+        ?array $extraParams = null
+    ): Future {
+        $replyParameters = ['message_id' => $replyToMessageId];
+
+        return $this->sendMessage(
+            $chatId,
+            $text,
+            $keyboard,
+            $extraParams,
+            replyParameters: $replyParameters,
+        );
     }
 
     /**
@@ -215,10 +281,24 @@ trait SendsMessages
 
     /**
      * Forward message from one chat to another.
+     *
+     * @param int|null $videoStartTimestamp New start timestamp for a forwarded video
      */
-    public function forwardMessage(int|string $chatId, int|string $fromChatId, int $messageId, ?array $extraParams = null): Future
-    {
-        $payload = ['chat_id' => $chatId, 'from_chat_id' => $fromChatId, 'message_id' => $messageId];
+    public function forwardMessage(
+        int|string $chatId,
+        int|string $fromChatId,
+        int $messageId,
+        ?int $videoStartTimestamp = null,
+        ?array $extraParams = null
+    ): Future {
+        $payload = [
+            'chat_id' => $chatId,
+            'from_chat_id' => $fromChatId,
+            'message_id' => $messageId,
+        ];
+        if ($videoStartTimestamp !== null) {
+            $payload['video_start_timestamp'] = $videoStartTimestamp;
+        }
         return $this->request('forwardMessage', $extraParams ? array_merge($payload, $extraParams) : $payload);
     }
 
@@ -264,7 +344,7 @@ trait SendsMessages
         $payload = [
             'chat_id' => $chatId,
             'from_chat_id' => $fromChatId,
-            'message_id' => $messageId
+            'message_id' => $messageId,
         ];
 
         if ($caption !== null) {
@@ -470,10 +550,43 @@ trait SendsMessages
 
     /**
      * Send venue location.
+     *
+     * @param string|null $foursquareId   Foursquare identifier of the venue
+     * @param string|null $foursquareType Foursquare type of the venue
+     * @param string|null $googlePlaceId  Google Places identifier of the venue
+     * @param string|null $googlePlaceType Google Places type of the venue
      */
-    public function sendVenue(int|string $chatId, float $latitude, float $longitude, string $title, string $address, ?array $extraParams = null): Future
-    {
-        $payload = ['chat_id' => $chatId, 'latitude' => $latitude, 'longitude' => $longitude, 'title' => $title, 'address' => $address];
+    public function sendVenue(
+        int|string $chatId,
+        float $latitude,
+        float $longitude,
+        string $title,
+        string $address,
+        ?string $foursquareId = null,
+        ?string $foursquareType = null,
+        ?string $googlePlaceId = null,
+        ?string $googlePlaceType = null,
+        ?array $extraParams = null
+    ): Future {
+        $payload = [
+            'chat_id' => $chatId,
+            'latitude' => $latitude,
+            'longitude' => $longitude,
+            'title' => $title,
+            'address' => $address,
+        ];
+        if ($foursquareId !== null) {
+            $payload['foursquare_id'] = $foursquareId;
+        }
+        if ($foursquareType !== null) {
+            $payload['foursquare_type'] = $foursquareType;
+        }
+        if ($googlePlaceId !== null) {
+            $payload['google_place_id'] = $googlePlaceId;
+        }
+        if ($googlePlaceType !== null) {
+            $payload['google_place_type'] = $googlePlaceType;
+        }
         return $this->request('sendVenue', $payload + ($extraParams ?? []));
     }
 
@@ -488,12 +601,28 @@ trait SendsMessages
 
     /**
      * Send contact info.
+     *
+     * @param string|null $vcard Additional vCard data (0-2048 bytes)
      */
-    public function sendContact(int|string $chatId, string $phoneNumber, string $firstName, ?string $lastName = null, ?array $extraParams = null): Future
-    {
-        $payload = ['chat_id' => $chatId, 'phone_number' => $phoneNumber, 'first_name' => $firstName];
-        if ($lastName !== null)
+    public function sendContact(
+        int|string $chatId,
+        string $phoneNumber,
+        string $firstName,
+        ?string $lastName = null,
+        ?string $vcard = null,
+        ?array $extraParams = null
+    ): Future {
+        $payload = [
+            'chat_id' => $chatId,
+            'phone_number' => $phoneNumber,
+            'first_name' => $firstName,
+        ];
+        if ($lastName !== null) {
             $payload['last_name'] = $lastName;
+        }
+        if ($vcard !== null) {
+            $payload['vcard'] = $vcard;
+        }
         return $this->request('sendContact', $payload + ($extraParams ?? []));
     }
 }

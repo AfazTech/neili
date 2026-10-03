@@ -10,6 +10,7 @@ declare(strict_types=1);
 
 namespace Neili;
 
+use Amp\Http\Client\HttpClient;
 use Psr\Log\LoggerInterface;
 
 class Settings
@@ -68,6 +69,15 @@ class Settings
      * Maximum concurrent async handlers in poller
      */
     private ?int $pollerMaxConcurrency = null;
+
+    /**
+     * Optional custom HTTP client (proxy, custom connector, etc).
+     *
+     * When set, this instance is used as-is and HttpClientBuilder defaults
+     * are ignored. Callers remain responsible for the transfer / connect
+     * timeouts applied per-Request by Neili.
+     */
+    private ?HttpClient $httpClient = null;
 
     /**
      * Logger instance
@@ -186,6 +196,20 @@ class Settings
      * Get maximum concurrent handlers
      */
     public function getPollerMaxConcurrency(): ?int { return $this->pollerMaxConcurrency; }
+
+    /**
+     * Inject a pre-configured HTTP client.
+     *
+     * Useful for proxies, custom DNS connectors, custom TLS contexts, or
+     * request interceptors. Neili will apply its per-request timeouts on
+     * top of whatever the supplied client provides.
+     */
+    public function setHttpClient(HttpClient $client): self { $this->httpClient = $client; return $this; }
+
+    /**
+     * Get the injected HTTP client, if any.
+     */
+    public function getHttpClient(): ?HttpClient { return $this->httpClient; }
 
     /**
      * Get logger instance

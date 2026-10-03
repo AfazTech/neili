@@ -24,6 +24,7 @@ class Poller
     private Client $client;
     private array $handlers = [];
     private $updateHandler = null; // backward compatible single update callback
+    private $errorHandler = null; // optional handler error callback
     private int $offset = 0; // last processed update ID
     private bool $running = false; // poller active state
     private ?Future $mainFuture = null; // main async loop future
@@ -51,6 +52,37 @@ class Poller
     public function onUpdate(callable $callback): void
     {
         $this->updateHandler = $callback;
+    }
+
+    /**
+     * Register a callback invoked when a per-update handler throws.
+     *
+     * Signature: fn(\Throwable $e, array $update, string $type): void
+     *
+     * The callback is invoked *in addition to* logging; exceptions thrown
+     * by the callback itself are swallowed to keep the poll loop alive.
+     */
+    public function onError(callable $callback): void
+    {
+        $this->errorHandler = $callback;
+    }
+
+    /**
+     * Report a handler error to both the logger and the onError callback.
+     */
+    private function reportHandlerError(\Throwable $e, array $update, string $type): void
+    {
+        $this->logger->error("Handler error for {$type}: " . $e->getMessage());
+
+        if ($this->errorHandler === null) {
+            return;
+        }
+
+        try {
+            ($this->errorHandler)($e, $update, $type);
+        } catch (\Throwable $inner) {
+            $this->logger->error("onError handler error: " . $inner->getMessage());
+        }
     }
 
     // Register callback handlers for specific Telegram update types
@@ -183,12 +215,18 @@ class Poller
                             try {
                                 $type = $this->detectType($update);
                                 foreach ($this->handlers[$type] ?? [] as $handler) {
-                                    try { $handler($update); }
-                                    catch (\Throwable $e) { $this->logger->error("Handler error for {$type}: ".$e->getMessage()); }
+                                    try {
+                                        $handler($update);
+                                    } catch (\Throwable $e) {
+                                        $this->reportHandlerError($e, $update, $type);
+                                    }
                                 }
                                 if ($this->updateHandler !== null) {
-                                    try { ($this->updateHandler)($update); }
-                                    catch (\Throwable $e) { $this->logger->error("onUpdate handler error: ".$e->getMessage()); }
+                                    try {
+                                        ($this->updateHandler)($update);
+                                    } catch (\Throwable $e) {
+                                        $this->reportHandlerError($e, $update, 'onUpdate');
+                                    }
                                 }
                             } finally { $lock?->release(); }
                         });
