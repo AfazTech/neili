@@ -17,12 +17,49 @@ use InvalidArgumentException;
 trait HandlesGames
 {
     /**
-     * Send game message
+     * Send game message.
      */
-    public function sendGame(int $chatId, string $gameShortName, ?array $extraParams = null): Future
-    {
+    public function sendGame(
+        int|string $chatId,
+        string $gameShortName,
+        ?array $extraParams = null,
+        ?int $messageThreadId = null,
+        ?bool $disableNotification = null,
+        ?bool $protectContent = null,
+        ?bool $allowPaidBroadcast = null,
+        ?string $messageEffectId = null,
+        ?array $replyParameters = null,
+        ?array $keyboard = null,
+        ?string $businessConnectionId = null
+    ): Future {
         $payload = ['chat_id' => $chatId, 'game_short_name' => $gameShortName];
-        return $this->request('sendGame', $payload + ($extraParams ?? []));
+
+        if ($messageThreadId !== null) {
+            $payload['message_thread_id'] = $messageThreadId;
+        }
+        if ($disableNotification !== null) {
+            $payload['disable_notification'] = $disableNotification;
+        }
+        if ($protectContent !== null) {
+            $payload['protect_content'] = $protectContent;
+        }
+        if ($allowPaidBroadcast !== null) {
+            $payload['allow_paid_broadcast'] = $allowPaidBroadcast;
+        }
+        if ($messageEffectId !== null) {
+            $payload['message_effect_id'] = $messageEffectId;
+        }
+        if ($replyParameters !== null) {
+            $payload['reply_parameters'] = json_encode($replyParameters);
+        }
+        if ($keyboard !== null) {
+            $payload['reply_markup'] = json_encode($keyboard);
+        }
+        if ($businessConnectionId !== null) {
+            $payload['business_connection_id'] = $businessConnectionId;
+        }
+
+        return $this->request('sendGame', $extraParams ? array_merge($payload, $extraParams) : $payload);
     }
 
     /**

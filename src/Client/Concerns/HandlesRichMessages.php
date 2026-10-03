@@ -12,7 +12,6 @@ declare(strict_types=1);
 namespace Neili\Client\Concerns;
 
 use Amp\Future;
-use Neili\Media;
 
 trait HandlesRichMessages
 {
@@ -20,14 +19,6 @@ trait HandlesRichMessages
      * Walk an InputRichMessage and replace every Media object inside the
      * embedded InputMedia payloads with attach:// references, collecting the
      * underlying files into the $attachments map.
-     *
-     * The outer InputRichMessageMedia array keeps its structure; only the
-     * inner InputMedia objects are rewritten, matching the grammar defined
-     * by the Telegram Bot API.
-     *
-     * @param array $richMessage InputRichMessage payload
-     * @param array $attachments File map populated by reference
-     * @return array Normalized InputRichMessage payload
      */
     private function extractRichMessageAttachments(array $richMessage, array &$attachments): array
     {
@@ -43,15 +34,10 @@ trait HandlesRichMessages
             $scopedFiles = [];
             $normalized = $this->extractMediaAttachments($item['media'], $scopedFiles);
 
-            // Re-key the collected files with a per-item prefix so that the
-            // same field name (e.g. "media") in two InputRichMessageMedia
-            // entries does not collide.
             foreach ($scopedFiles as $key => $path) {
                 $attachments['rich_' . $index . '_' . $key] = $path;
             }
 
-            // Rewrite the attach:// references inside this item to match the
-            // prefixed keys collected above.
             foreach (['media', 'photo', 'thumbnail', 'cover'] as $field) {
                 if (
                     isset($normalized[$field])
@@ -88,7 +74,11 @@ trait HandlesRichMessages
         ?array $suggestedPostParameters = null,
         ?array $replyParameters = null,
         ?array $keyboard = null,
-        ?array $extraParams = null
+        ?array $extraParams = null,
+        ?int $messageThreadId = null,
+        ?int $directMessagesTopicId = null,
+        ?string $businessConnectionId = null,
+        ?array $ephemeralMessageParameters = null
     ): Future {
         $attachments = [];
         $richMessage = $this->extractRichMessageAttachments($richMessage, $attachments);
@@ -118,6 +108,18 @@ trait HandlesRichMessages
         if ($keyboard !== null) {
             $payload['reply_markup'] = json_encode($keyboard);
         }
+        if ($messageThreadId !== null) {
+            $payload['message_thread_id'] = $messageThreadId;
+        }
+        if ($directMessagesTopicId !== null) {
+            $payload['direct_messages_topic_id'] = $directMessagesTopicId;
+        }
+        if ($businessConnectionId !== null) {
+            $payload['business_connection_id'] = $businessConnectionId;
+        }
+        if ($ephemeralMessageParameters !== null) {
+            $payload['ephemeral_message_parameters'] = json_encode($ephemeralMessageParameters);
+        }
         if ($extraParams !== null) {
             $payload = array_merge($payload, $extraParams);
         }
@@ -129,11 +131,6 @@ trait HandlesRichMessages
 
     /**
      * Stream a partial rich message to a user.
-     *
-     * Direct upload of new files and explicit upload of files by a URL isn't
-     * supported while streaming, matching the Telegram Bot API rules.
-     *
-     * @param array $richMessage InputRichMessage payload
      */
     public function sendRichMessageDraft(
         int $chatId,
@@ -195,6 +192,6 @@ trait HandlesRichMessages
         if ($keepOnStop !== null) {
             $payload['keep_on_stop'] = $keepOnStop;
         }
-        return $this->request('sendMessageDraft', $payload);
+        return $this->request('sendRichMessageDraft', $payload);
     }
 }

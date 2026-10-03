@@ -12,6 +12,7 @@ declare(strict_types=1);
 namespace Neili\Client\Concerns;
 
 use Amp\Future;
+use InvalidArgumentException;
 
 trait HandlesGifts
 {
@@ -25,15 +26,34 @@ trait HandlesGifts
 
     /**
      * Send a gift to the given user or channel chat.
+     *
+     * Exactly one of $userId or $chatId must be provided.
+     *
+     * @param int|null    $userId
+     * @param int|string|null $chatId
+     * @param string      $giftId
+     * @param bool|null   $payForUpgrade
+     * @param string|null $text
+     * @param string|null $textParseMode
+     * @param array|null  $textEntities
+     * @param array|null  $extraParams
      */
     public function sendGift(
-        int|string|null $userId,
+        ?int $userId,
         int|string|null $chatId,
         string $giftId,
         ?bool $payForUpgrade = null,
         ?string $text = null,
+        ?string $textParseMode = null,
+        ?array $textEntities = null,
         ?array $extraParams = null
     ): Future {
+        if (($userId === null) === ($chatId === null)) {
+            throw new InvalidArgumentException(
+                'Exactly one of user_id or chat_id must be provided when sending a gift.'
+            );
+        }
+
         $payload = ['gift_id' => $giftId];
 
         if ($userId !== null) {
@@ -48,6 +68,12 @@ trait HandlesGifts
         if ($text !== null) {
             $payload['text'] = $text;
         }
+        if ($textParseMode !== null) {
+            $payload['text_parse_mode'] = $textParseMode;
+        }
+        if ($textEntities !== null) {
+            $payload['text_entities'] = json_encode($textEntities);
+        }
 
         return $this->request('sendGift', $extraParams ? array_merge($payload, $extraParams) : $payload);
     }
@@ -60,6 +86,8 @@ trait HandlesGifts
         int $monthCount,
         int $starCount,
         ?string $text = null,
+        ?string $textParseMode = null,
+        ?array $textEntities = null,
         ?array $extraParams = null
     ): Future {
         $payload = [
@@ -69,6 +97,12 @@ trait HandlesGifts
         ];
         if ($text !== null) {
             $payload['text'] = $text;
+        }
+        if ($textParseMode !== null) {
+            $payload['text_parse_mode'] = $textParseMode;
+        }
+        if ($textEntities !== null) {
+            $payload['text_entities'] = json_encode($textEntities);
         }
         return $this->request('giftPremiumSubscription', $extraParams ? array_merge($payload, $extraParams) : $payload);
     }

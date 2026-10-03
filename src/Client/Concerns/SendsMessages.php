@@ -19,10 +19,6 @@ trait SendsMessages
     /**
      * Send text message.
      *
-     * The $replyParameters argument accepts a ReplyParameters payload; the
-     * legacy reply_to_message_id is intentionally not exposed, since the Bot
-     * API deprecates it in favor of ReplyParameters.
-     *
      * @param array|null $replyParameters      ReplyParameters payload
      * @param array|null $linkPreviewOptions   LinkPreviewOptions payload
      * @param array|null $keyboard             Reply markup
@@ -106,9 +102,7 @@ trait SendsMessages
     }
 
     /**
-     * Edit existing message text. Set $inlineMessageId to edit an inline
-     * message instead of a chat message (in that case $chatId and
-     * $messageId may be null).
+     * Edit existing message text.
      */
     public function editMessageText(
         int|string|null $chatId,
@@ -162,15 +156,7 @@ trait SendsMessages
     }
 
     /**
-     * Edit animation, audio, document, live photo, photo, or video messages,
-     * or replace a text message with media.
-     *
-     * Any Media object embedded in the InputMedia payload (under the media,
-     * photo, thumbnail, or cover fields) is uploaded via multipart/form-data
-     * and referenced with an attach:// key. For inline messages, only
-     * previously uploaded files (file_id) or HTTP URLs may be used.
-     *
-     * @param array $media InputMedia payload
+     * Edit animation, audio, document, live photo, photo, or video messages.
      */
     public function editMessageMedia(
         int|string|null $chatId,
@@ -268,8 +254,6 @@ trait SendsMessages
 
     /**
      * Delete multiple messages simultaneously.
-     *
-     * @param array<int> $messageIds
      */
     public function deleteMessages(int|string $chatId, array $messageIds): Future
     {
@@ -281,8 +265,6 @@ trait SendsMessages
 
     /**
      * Forward message from one chat to another.
-     *
-     * @param int|null $videoStartTimestamp New start timestamp for a forwarded video
      */
     public function forwardMessage(
         int|string $chatId,
@@ -304,8 +286,6 @@ trait SendsMessages
 
     /**
      * Forward multiple messages of any kind.
-     *
-     * @param array<int> $messageIds
      */
     public function forwardMessages(
         int|string $chatId,
@@ -331,7 +311,6 @@ trait SendsMessages
 
     /**
      * Copy messages of any kind.
-     * Service messages and invoice messages can't be copied.
      */
     public function copyMessage(
         int|string $chatId,
@@ -360,8 +339,6 @@ trait SendsMessages
 
     /**
      * Copy multiple messages of any kind.
-     *
-     * @param array<int> $messageIds
      */
     public function copyMessages(
         int|string $chatId,
@@ -417,8 +394,6 @@ trait SendsMessages
 
     /**
      * Change the chosen reactions on a message.
-     *
-     * @param array $reaction Array of ReactionType
      */
     public function setMessageReaction(
         int|string $chatId,
@@ -502,41 +477,101 @@ trait SendsMessages
     /**
      * Send poll (quiz or survey).
      *
-     * Each option may be provided either as a plain string (legacy style) or
-     * as an InputPollOption array (e.g. ['text' => 'Option', 'media' => [...]]).
-     * Plain strings are normalised to ['text' => ...] before being sent.
+     * Each option may be a plain string, an InputPollOption array, or an
+     * array containing a local Media object inside its 'media' field. All
+     * media fields (per-option, poll description, quiz explanation) are
+     * normalized and their local files uploaded via multipart/form-data.
+     *
+     * @param array $options  List of poll options
+     * @param array|null $media               InputPollMedia for the poll description
+     * @param array|null $explanationMedia    InputPollMedia for the quiz explanation
      */
     public function sendPoll(
         int|string $chatId,
         string $question,
         array $options,
-        ?bool $isAnonymous = true,
-        ?string $type = 'regular',
-        ?array $extraParams = null
+        ?bool $isAnonymous = null,
+        ?string $type = null,
+        ?array $extraParams = null,
+        ?array $questionEntities = null,
+        ?array $media = null,
+        ?string $description = null,
+        ?array $descriptionEntities = null,
+        ?string $explanation = null,
+        ?array $explanationEntities = null,
+        ?array $explanationMedia = null
     ): Future {
+        $attachments = [];
         $normalizedOptions = [];
 
-        foreach ($options as $option) {
+        foreach ($options as $index => $option) {
             if (is_string($option)) {
                 $normalizedOptions[] = ['text' => $option];
-            } elseif (is_array($option) && isset($option['text'])) {
-                $normalizedOptions[] = $option;
-            } else {
+                continue;
+            }
+
+            if (!is_array($option) || !isset($option['text'])) {
                 throw new InvalidArgumentException(
                     'Each poll option must be a string or an InputPollOption array containing a "text" key.'
                 );
             }
+
+            if (isset($option['media']) && is_array($option['media'])) {
+                $option['media'] = $this->extractPollMediaAttachments(
+                    $option['media'],
+                    $attachments,
+                    'option_' . $index
+                );
+            }
+
+            $normalizedOptions[] = $option;
         }
 
         $payload = [
             'chat_id' => $chatId,
             'question' => $question,
             'options' => json_encode($normalizedOptions),
-            'is_anonymous' => $isAnonymous,
-            'type' => $type,
         ];
 
-        return $this->request('sendPoll', $payload + ($extraParams ?? []));
+        if ($isAnonymous !== null) {
+            $payload['is_anonymous'] = $isAnonymous;
+        }
+        if ($type !== null) {
+            $payload['type'] = $type;
+        }
+        if ($questionEntities !== null) {
+            $payload['question_entities'] = json_encode($questionEntities);
+        }
+        if ($media !== null) {
+            $payload['media'] = json_encode(
+                $this->extractPollMediaAttachments($media, $attachments, 'poll_media')
+            );
+        }
+        if ($description !== null) {
+            $payload['description'] = $description;
+        }
+        if ($descriptionEntities !== null) {
+            $payload['description_entities'] = json_encode($descriptionEntities);
+        }
+        if ($explanation !== null) {
+            $payload['explanation'] = $explanation;
+        }
+        if ($explanationEntities !== null) {
+            $payload['explanation_entities'] = json_encode($explanationEntities);
+        }
+        if ($explanationMedia !== null) {
+            $payload['explanation_media'] = json_encode(
+                $this->extractPollMediaAttachments($explanationMedia, $attachments, 'explanation_media')
+            );
+        }
+
+        if ($extraParams !== null) {
+            $payload += $extraParams;
+        }
+
+        return $attachments
+            ? $this->requestWithFile('sendPoll', $payload, $attachments)
+            : $this->request('sendPoll', $payload);
     }
 
     /**
@@ -550,11 +585,6 @@ trait SendsMessages
 
     /**
      * Send venue location.
-     *
-     * @param string|null $foursquareId   Foursquare identifier of the venue
-     * @param string|null $foursquareType Foursquare type of the venue
-     * @param string|null $googlePlaceId  Google Places identifier of the venue
-     * @param string|null $googlePlaceType Google Places type of the venue
      */
     public function sendVenue(
         int|string $chatId,
@@ -601,8 +631,6 @@ trait SendsMessages
 
     /**
      * Send contact info.
-     *
-     * @param string|null $vcard Additional vCard data (0-2048 bytes)
      */
     public function sendContact(
         int|string $chatId,

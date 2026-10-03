@@ -33,10 +33,6 @@ trait MakesHttpRequests
 
     /**
      * Resolve the appropriate per-request timeout for the given method.
-     *
-     * getUpdates is a long-poll: the transport must keep the connection alive
-     * for at least the Telegram "timeout" value plus a small grace period,
-     * otherwise the request is aborted before Telegram replies.
      */
     private function resolveRequestTimeout(string $method, array $params): float
     {
@@ -50,13 +46,6 @@ trait MakesHttpRequests
 
     /**
      * Apply Settings-based timeouts to a Request.
-     *
-     * For long-polling (getUpdates), both the transfer timeout and the
-     * inactivity timeout must be extended to "poll timeout + grace".
-     * The inactivity timeout is critical: during a long poll no bytes are
-     * exchanged while Telegram waits for an update, so a short inactivity
-     * timeout would tear the connection down even though the request is
-     * still valid.
      */
     private function applyTimeouts(Request $request, string $method, array $params): void
     {
@@ -69,14 +58,6 @@ trait MakesHttpRequests
 
     /**
      * Build an InputProfilePhoto payload and companion files array.
-     *
-     * Accepts either a Media object (which is uploaded via
-     * multipart/form-data and referenced with "attach://...") or a
-     * pre-built InputProfilePhoto array which is passed through untouched.
-     *
-     * Animated profile photos (MPEG4) use the "animated" variant, any other
-     * extension is treated as a static (JPG) profile photo, as required by
-     * the Telegram Bot API.
      *
      * @param array|Media $photo
      * @return array Tuple of [payload, files]
@@ -146,13 +127,46 @@ trait MakesHttpRequests
     }
 
     /**
-     * Translate HTTP status + decoded Telegram payload into Neili exceptions.
+     * Normalize an InputPollMedia / InputPollOptionMedia value.
      *
-     * Classification rules:
-     *   - HTTP 5xx                    -> TransientException
-     *   - Telegram error_code 429     -> RateLimitException (with retry_after)
-     *   - Telegram error_code >= 500  -> TransientException
-     *   - any other non-ok response   -> PermanentException
+     * Both shapes share the same grammar: an object with a "type" field and,
+     * for concrete media variants, a "media" (or "photo") field that can hold
+     * a Media object. Location and venue variants carry coordinates instead.
+     *
+     * @param array|null $media
+     * @param array      $attachments File map populated by reference
+     * @param string     $prefix      Unique prefix for generated attach keys
+     * @return array|null
+     */
+    private function extractPollMediaAttachments(?array $media, array &$attachments, string $prefix): ?array
+    {
+        if ($media === null) {
+            return null;
+        }
+
+        $scoped = [];
+        $normalized = $this->extractMediaAttachments($media, $scoped);
+
+        foreach ($scoped as $key => $path) {
+            $attachments[$prefix . '_' . $key] = $path;
+        }
+
+        foreach (['media', 'photo'] as $field) {
+            if (
+                isset($normalized[$field])
+                && is_string($normalized[$field])
+                && str_starts_with($normalized[$field], 'attach://')
+            ) {
+                $originalKey = substr($normalized[$field], 8);
+                $normalized[$field] = 'attach://' . $prefix . '_' . $originalKey;
+            }
+        }
+
+        return $normalized;
+    }
+
+    /**
+     * Translate HTTP status + decoded Telegram payload into Neili exceptions.
      *
      * @throws TransientException on transient failures
      * @throws RateLimitException on HTTP 429
@@ -195,8 +209,7 @@ trait MakesHttpRequests
 
     /**
      * Convert a low-level transport failure into a TransientException so the
-     * Poller can retry without dying. PHP engine errors (Error subclasses)
-     * are re-thrown untouched, since they indicate bugs, not transient faults.
+     * Poller can retry without dying.
      */
     private function translateTransportError(\Throwable $e): \Throwable
     {
@@ -244,8 +257,7 @@ trait MakesHttpRequests
     }
 
     /**
-     * Send request with file upload support
-     * Useful for photos, documents, audio, stickers, etc.
+     * Send request with file upload support.
      */
     private function requestWithFile(string $method, array $fields, array $files = []): Future
     {
