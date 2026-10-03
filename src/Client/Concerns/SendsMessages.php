@@ -18,10 +18,6 @@ trait SendsMessages
 {
     /**
      * Send text message.
-     *
-     * @param array|null $replyParameters      ReplyParameters payload
-     * @param array|null $linkPreviewOptions   LinkPreviewOptions payload
-     * @param array|null $keyboard             Reply markup
      */
     public function sendMessage(
         int|string $chatId,
@@ -307,13 +303,17 @@ trait SendsMessages
 
     /**
      * Forward message from one chat to another.
+     *
+     * The $videoStartTimestamp parameter is placed AFTER $extraParams to
+     * preserve the original 4-argument signature:
+     * forwardMessage($chatId, $fromChatId, $messageId, ?array $extraParams).
      */
     public function forwardMessage(
         int|string $chatId,
         int|string $fromChatId,
         int $messageId,
-        ?int $videoStartTimestamp = null,
         ?array $extraParams = null,
+        ?int $videoStartTimestamp = null,
         ?int $messageThreadId = null,
         ?int $directMessagesTopicId = null,
         ?bool $disableNotification = null,
@@ -773,6 +773,10 @@ trait SendsMessages
 
     /**
      * Send venue location.
+     *
+     * The foursquare and Google Place identifiers are placed AFTER
+     * $extraParams to preserve the original 6-argument signature:
+     * sendVenue($chatId, $lat, $lng, $title, $address, ?array $extraParams).
      */
     public function sendVenue(
         int|string $chatId,
@@ -780,11 +784,11 @@ trait SendsMessages
         float $longitude,
         string $title,
         string $address,
+        ?array $extraParams = null,
         ?string $foursquareId = null,
         ?string $foursquareType = null,
         ?string $googlePlaceId = null,
-        ?string $googlePlaceType = null,
-        ?array $extraParams = null
+        ?string $googlePlaceType = null
     ): Future {
         $payload = [
             'chat_id' => $chatId,
@@ -801,7 +805,7 @@ trait SendsMessages
             $payload['google_place_id'] = $googlePlaceId;
         if ($googlePlaceType !== null)
             $payload['google_place_type'] = $googlePlaceType;
-        return $this->request('sendVenue', $payload + ($extraParams ?? []));
+        return $this->request('sendVenue', $extraParams ? array_merge($payload, $extraParams) : $payload);
     }
 
     /**
@@ -826,19 +830,23 @@ trait SendsMessages
             $payload['heading'] = $heading;
         if ($proximityAlertRadius !== null)
             $payload['proximity_alert_radius'] = $proximityAlertRadius;
-        return $this->request('sendLocation', $payload + ($extraParams ?? []));
+        return $this->request('sendLocation', $extraParams ? array_merge($payload, $extraParams) : $payload);
     }
 
     /**
      * Send contact info.
+     *
+     * The $vcard parameter is placed AFTER $extraParams to preserve the
+     * original 5-argument signature:
+     * sendContact($chatId, $phone, $first, ?string $last, ?array $extraParams).
      */
     public function sendContact(
         int|string $chatId,
         string $phoneNumber,
         string $firstName,
         ?string $lastName = null,
-        ?string $vcard = null,
-        ?array $extraParams = null
+        ?array $extraParams = null,
+        ?string $vcard = null
     ): Future {
         $payload = [
             'chat_id' => $chatId,
@@ -849,6 +857,6 @@ trait SendsMessages
             $payload['last_name'] = $lastName;
         if ($vcard !== null)
             $payload['vcard'] = $vcard;
-        return $this->request('sendContact', $payload + ($extraParams ?? []));
+        return $this->request('sendContact', $extraParams ? array_merge($payload, $extraParams) : $payload);
     }
 }

@@ -25,6 +25,16 @@ trait ManagesChats
     }
 
     /**
+     * Get chat members count.
+     *
+     * @deprecated Use getChatMemberCount() instead.
+     */
+    public function getChatMembersCount(int|string $chatId): Future
+    {
+        return $this->getChatMemberCount($chatId);
+    }
+
+    /**
      * Get the number of members in a chat.
      */
     public function getChatMemberCount(int|string $chatId): Future

@@ -19,9 +19,6 @@ trait SendsMedia
 {
     /**
      * Merge caption-related fields into a payload.
-     *
-     * Used by sendPhoto, sendVideo, sendAnimation, sendLivePhoto and
-     * sendPaidMedia, which all share the same caption grammar.
      */
     private function applyMediaCaption(
         array $fields,
@@ -30,24 +27,22 @@ trait SendsMedia
         ?array $captionEntities,
         ?bool $showCaptionAboveMedia
     ): array {
-        if ($caption !== null) {
+        if ($caption !== null)
             $fields['caption'] = $caption;
-        }
-        if ($parseMode !== null) {
+        if ($parseMode !== null)
             $fields['parse_mode'] = $parseMode;
-        }
-        if ($captionEntities !== null) {
+        if ($captionEntities !== null)
             $fields['caption_entities'] = json_encode($captionEntities);
-        }
-        if ($showCaptionAboveMedia !== null) {
+        if ($showCaptionAboveMedia !== null)
             $fields['show_caption_above_media'] = $showCaptionAboveMedia;
-        }
         return $fields;
     }
 
     /**
      * Send photo.
-     * Supports both Media object or URL/file_id string.
+     *
+     * New optional parameters are placed after $extraParams to preserve the
+     * original 5-argument signature.
      */
     public function sendPhoto(
         int|string $chatId,
@@ -121,10 +116,6 @@ trait SendsMedia
 
     /**
      * Send paid media.
-     *
-     * @param array $media Array of InputPaidMedia
-     * @param array|null $replyParameters          ReplyParameters payload
-     * @param array|null $suggestedPostParameters  SuggestedPostParameters payload
      */
     public function sendPaidMedia(
         int|string $chatId,
@@ -411,13 +402,14 @@ trait SendsMedia
     /**
      * Send sticker.
      *
-     * @param string|null $emoji Emoji associated with the sticker; only for just uploaded stickers
+     * The $emoji parameter is placed AFTER $extraParams to preserve the
+     * original 3-argument signature: sendSticker($chatId, $sticker, $extraParams).
      */
     public function sendSticker(
         int|string $chatId,
         string|Media $sticker,
-        ?string $emoji = null,
-        ?array $extraParams = null
+        ?array $extraParams = null,
+        ?string $emoji = null
     ): Future {
         $fields = ['chat_id' => $chatId];
 
@@ -509,16 +501,20 @@ trait SendsMedia
     /**
      * Send a group of photos, videos, documents or audios as an album.
      *
+     * The 5th parameter is kept as the legacy $replyToMessageId to preserve
+     * the original signature. To use the modern ReplyParameters object,
+     * pass it via the $replyParameters parameter placed after $extraParams.
+     *
      * @param array $mediaItems Array of Media, strings, or InputMedia arrays
-     * @param array|null $replyParameters ReplyParameters payload
      */
     public function sendMediaGroup(
         int|string $chatId,
         array $mediaItems,
         ?string $caption = null,
         ?bool $disableNotification = null,
-        ?array $replyParameters = null,
+        ?int $replyToMessageId = null,
         ?array $extraParams = null,
+        ?array $replyParameters = null,
         ?bool $protectContent = null,
         ?bool $allowPaidBroadcast = null,
         ?string $messageEffectId = null,
@@ -585,8 +581,15 @@ trait SendsMedia
 
         if ($disableNotification !== null)
             $payload['disable_notification'] = $disableNotification;
-        if ($replyParameters !== null)
+
+        // Prefer the modern ReplyParameters when explicitly provided;
+        // otherwise fall back to the legacy reply_to_message_id.
+        if ($replyParameters !== null) {
             $payload['reply_parameters'] = json_encode($replyParameters);
+        } elseif ($replyToMessageId !== null) {
+            $payload['reply_to_message_id'] = $replyToMessageId;
+        }
+
         if ($protectContent !== null)
             $payload['protect_content'] = $protectContent;
         if ($allowPaidBroadcast !== null)
@@ -609,9 +612,6 @@ trait SendsMedia
             : $this->request('sendMediaGroup', $payload);
     }
 
-    /**
-     * Detect the media type from a file extension for sendMediaGroup.
-     */
     private function detectMediaType(string $path): string
     {
         $ext = strtolower(pathinfo($path, PATHINFO_EXTENSION));
@@ -625,10 +625,6 @@ trait SendsMedia
         };
     }
 
-    /**
-     * Detect the InputPaidMedia type from a file extension.
-     * Only "photo" and "video" are valid for paid media.
-     */
     private function detectPaidMediaType(string $path): string
     {
         $ext = strtolower(pathinfo($path, PATHINFO_EXTENSION));

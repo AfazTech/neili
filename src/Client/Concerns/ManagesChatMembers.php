@@ -52,14 +52,22 @@ trait ManagesChatMembers
 
     /**
      * Unban user.
+     *
+     * The $onlyIfBanned parameter is intentionally placed AFTER $extraParams
+     * to preserve backward compatibility with the original 3-argument
+     * signature: unbanChatMember(int $chatId, int $userId, ?array $extraParams).
      */
-    public function unbanChatMember(int|string $chatId, int $userId, ?bool $onlyIfBanned = null, ?array $extraParams = null): Future
-    {
+    public function unbanChatMember(
+        int|string $chatId,
+        int $userId,
+        ?array $extraParams = null,
+        ?bool $onlyIfBanned = null
+    ): Future {
         $payload = ['chat_id' => $chatId, 'user_id' => $userId];
         if ($onlyIfBanned !== null) {
             $payload['only_if_banned'] = $onlyIfBanned;
         }
-        return $this->request('unbanChatMember', $payload + ($extraParams ?? []));
+        return $this->request('unbanChatMember', $extraParams ? array_merge($payload, $extraParams) : $payload);
     }
 
     /**

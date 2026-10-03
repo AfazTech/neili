@@ -29,24 +29,27 @@ trait HandlesGifts
      *
      * Exactly one of $userId or $chatId must be provided.
      *
-     * @param int|null    $userId
+     * The $textParseMode and $textEntities parameters are placed after
+     * $extraParams to preserve the original 6-argument signature.
+     *
+     * @param int|string|null $userId
      * @param int|string|null $chatId
      * @param string      $giftId
      * @param bool|null   $payForUpgrade
      * @param string|null $text
+     * @param array|null  $extraParams
      * @param string|null $textParseMode
      * @param array|null  $textEntities
-     * @param array|null  $extraParams
      */
     public function sendGift(
-        ?int $userId,
+        int|string|null $userId,
         int|string|null $chatId,
         string $giftId,
         ?bool $payForUpgrade = null,
         ?string $text = null,
+        ?array $extraParams = null,
         ?string $textParseMode = null,
-        ?array $textEntities = null,
-        ?array $extraParams = null
+        ?array $textEntities = null
     ): Future {
         if (($userId === null) === ($chatId === null)) {
             throw new InvalidArgumentException(

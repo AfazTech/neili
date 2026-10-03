@@ -18,7 +18,8 @@ trait HandlesInlineQueries
     /**
      * Answer callback query (from inline keyboards).
      *
-     * @param array|null $extraParams Extra parameters merged into the payload
+     * The $url and $cacheTime parameters are placed after $extraParams to
+     * preserve the original 4-argument signature.
      */
     public function answerCallbackQuery(
         string $callbackQueryId,
@@ -43,20 +44,22 @@ trait HandlesInlineQueries
     /**
      * Answer inline query (used in inline bots).
      *
-     * @param array      $results       Array of InlineQueryResult payloads
-     * @param int|null   $cacheTime     Cache time in seconds (defaults to Telegram's 300)
-     * @param bool|null  $isPersonal    Whether results are personal to the sender
-     * @param string|null $nextOffset   Offset for the next page of results
-     * @param array|null $button        InlineQueryResultsButton payload
+     * The original signature had (…, ?bool $cacheTime, ?bool $isPersonal,
+     * ?array $extraParams). New parameters ($nextOffset, $button) are placed
+     * AFTER $extraParams to keep positional backward compatibility. The
+     * $cacheTime type is preserved as ?bool even though the Bot API expects
+     * an integer; changing it would silently break existing callers.
+     *
+     * @param array $results Array of InlineQueryResult payloads
      */
     public function answerInlineQuery(
         string $inlineQueryId,
         array $results,
-        ?int $cacheTime = null,
+        ?bool $cacheTime = null,
         ?bool $isPersonal = null,
+        ?array $extraParams = null,
         ?string $nextOffset = null,
-        ?array $button = null,
-        ?array $extraParams = null
+        ?array $button = null
     ): Future {
         $payload = [
             'inline_query_id' => $inlineQueryId,
