@@ -12,12 +12,13 @@ declare(strict_types=1);
 namespace Neili\Client\Concerns;
 
 use Amp\Future;
+use InvalidArgumentException;
 use Neili\Media;
 
 trait ManagesStickers
 {
     /**
-     * Get sticker set info
+     * Get sticker set info.
      */
     public function getStickerSet(string $name): Future
     {
@@ -63,12 +64,10 @@ trait ManagesStickers
             'stickers' => json_encode($stickers),
         ];
 
-        if ($stickerType !== null) {
+        if ($stickerType !== null)
             $payload['sticker_type'] = $stickerType;
-        }
-        if ($needsRepainting !== null) {
+        if ($needsRepainting !== null)
             $payload['needs_repainting'] = $needsRepainting;
-        }
 
         return $this->request('createNewStickerSet', $payload);
     }
@@ -88,7 +87,7 @@ trait ManagesStickers
     }
 
     /**
-     * Delete sticker from set
+     * Delete sticker from set.
      */
     public function deleteStickerFromSet(string $stickerId): Future
     {
@@ -96,7 +95,7 @@ trait ManagesStickers
     }
 
     /**
-     * Set sticker position inside set
+     * Set sticker position inside set.
      */
     public function setStickerPositionInSet(string $stickerId, int $position): Future
     {
@@ -124,29 +123,34 @@ trait ManagesStickers
 
     /**
      * Set the thumbnail of a regular or mask sticker set.
+     *
+     * When $thumbnail is a Media object, the underlying file is uploaded via
+     * multipart/form-data; a string is passed through as a file_id / URL.
      */
     public function setStickerSetThumbnail(
         string $name,
         int $userId,
-        ?Media $thumbnail = null,
+        Media|string|null $thumbnail = null,
         ?string $format = null,
         ?array $extraParams = null
     ): Future {
         $fields = [
             'name' => $name,
-            'user_id' => $userId
+            'user_id' => $userId,
         ];
 
-        if ($format !== null) {
+        if ($format !== null)
             $fields['format'] = $format;
-        }
 
-        if ($extraParams !== null) {
+        if ($extraParams !== null)
             $fields = array_merge($fields, $extraParams);
-        }
 
         if ($thumbnail instanceof Media) {
             return $this->requestWithFile('setStickerSetThumbnail', $fields, ['thumbnail' => $thumbnail->filePath]);
+        }
+
+        if ($thumbnail !== null) {
+            $fields['thumbnail'] = $thumbnail;
         }
 
         return $this->request('setStickerSetThumbnail', $fields);
@@ -159,7 +163,7 @@ trait ManagesStickers
     {
         return $this->request('setStickerSetTitle', [
             'name' => $name,
-            'title' => $title
+            'title' => $title,
         ]);
     }
 
@@ -181,9 +185,8 @@ trait ManagesStickers
     ): Future {
         $payload = ['name' => $name];
 
-        if ($customEmojiId !== null) {
+        if ($customEmojiId !== null)
             $payload['custom_emoji_id'] = $customEmojiId;
-        }
 
         return $this->request('setCustomEmojiStickerSetThumbnail', $extraParams ? array_merge($payload, $extraParams) : $payload);
     }
@@ -195,7 +198,7 @@ trait ManagesStickers
     {
         return $this->request('setStickerEmojiList', [
             'sticker' => $stickerId,
-            'emoji_list' => json_encode($emojiList)
+            'emoji_list' => json_encode($emojiList),
         ]);
     }
 
@@ -206,7 +209,7 @@ trait ManagesStickers
     {
         return $this->request('setStickerKeywords', [
             'sticker' => $stickerId,
-            'keywords' => json_encode($keywords)
+            'keywords' => json_encode($keywords),
         ]);
     }
 
@@ -217,7 +220,7 @@ trait ManagesStickers
     {
         return $this->request('setStickerMaskPosition', [
             'sticker' => $stickerId,
-            'mask_position' => json_encode($maskPosition)
+            'mask_position' => json_encode($maskPosition),
         ]);
     }
 
@@ -227,7 +230,7 @@ trait ManagesStickers
     public function getCustomEmojiStickers(array $customEmojiIds): Future
     {
         return $this->request('getCustomEmojiStickers', [
-            'custom_emoji_ids' => json_encode($customEmojiIds)
+            'custom_emoji_ids' => json_encode($customEmojiIds),
         ]);
     }
 }

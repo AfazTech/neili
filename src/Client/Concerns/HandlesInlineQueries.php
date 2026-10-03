@@ -16,33 +16,67 @@ use Amp\Future;
 trait HandlesInlineQueries
 {
     /**
-     * Answer callback query (from inline keyboards)
+     * Answer callback query (from inline keyboards).
+     *
+     * @param array|null $extraParams Extra parameters merged into the payload
      */
-    public function answerCallbackQuery(string $callbackQueryId, ?string $text = null, ?bool $showAlert = false, ?array $extraParams = null): Future
-    {
+    public function answerCallbackQuery(
+        string $callbackQueryId,
+        ?string $text = null,
+        ?bool $showAlert = false,
+        ?array $extraParams = null,
+        ?string $url = null,
+        ?int $cacheTime = null
+    ): Future {
         $payload = ['callback_query_id' => $callbackQueryId];
         if ($text !== null)
             $payload['text'] = $text;
         if ($showAlert !== null)
             $payload['show_alert'] = $showAlert;
+        if ($url !== null)
+            $payload['url'] = $url;
+        if ($cacheTime !== null)
+            $payload['cache_time'] = $cacheTime;
         return $this->request('answerCallbackQuery', $extraParams ? array_merge($payload, $extraParams) : $payload);
     }
 
     /**
-     * Answer inline query (used in inline bots)
+     * Answer inline query (used in inline bots).
+     *
+     * @param array      $results       Array of InlineQueryResult payloads
+     * @param int|null   $cacheTime     Cache time in seconds (defaults to Telegram's 300)
+     * @param bool|null  $isPersonal    Whether results are personal to the sender
+     * @param string|null $nextOffset   Offset for the next page of results
+     * @param array|null $button        InlineQueryResultsButton payload
      */
-    public function answerInlineQuery(string $inlineQueryId, array $results, ?bool $cacheTime = null, ?bool $isPersonal = null, ?array $extraParams = null): Future
-    {
-        $payload = ['inline_query_id' => $inlineQueryId, 'results' => json_encode($results)];
+    public function answerInlineQuery(
+        string $inlineQueryId,
+        array $results,
+        ?int $cacheTime = null,
+        ?bool $isPersonal = null,
+        ?string $nextOffset = null,
+        ?array $button = null,
+        ?array $extraParams = null
+    ): Future {
+        $payload = [
+            'inline_query_id' => $inlineQueryId,
+            'results' => json_encode($results),
+        ];
         if ($cacheTime !== null)
             $payload['cache_time'] = $cacheTime;
         if ($isPersonal !== null)
             $payload['is_personal'] = $isPersonal;
-        return $this->request('answerInlineQuery', $payload + ($extraParams ?? []));
+        if ($nextOffset !== null)
+            $payload['next_offset'] = $nextOffset;
+        if ($button !== null)
+            $payload['button'] = json_encode($button);
+        return $this->request('answerInlineQuery', $extraParams ? array_merge($payload, $extraParams) : $payload);
     }
 
     /**
      * Set the result of an interaction with a Web App.
+     *
+     * @param array $result InlineQueryResult payload
      */
     public function answerWebAppQuery(
         string $webAppQueryId,
@@ -51,7 +85,7 @@ trait HandlesInlineQueries
     ): Future {
         $payload = [
             'web_app_query_id' => $webAppQueryId,
-            'result' => json_encode($result)
+            'result' => json_encode($result),
         ];
 
         return $this->request('answerWebAppQuery', $extraParams ? array_merge($payload, $extraParams) : $payload);
@@ -59,6 +93,8 @@ trait HandlesInlineQueries
 
     /**
      * Reply to a received guest message.
+     *
+     * @param array $result InlineQueryResult payload
      */
     public function answerGuestQuery(string $guestQueryId, array $result): Future
     {
@@ -70,6 +106,8 @@ trait HandlesInlineQueries
 
     /**
      * Store a message that can be sent by a user of a Mini App.
+     *
+     * @param array $result InlineQueryResult payload
      */
     public function savePreparedInlineMessage(
         int $userId,
@@ -84,18 +122,14 @@ trait HandlesInlineQueries
             'user_id' => $userId,
             'result' => json_encode($result),
         ];
-        if ($allowUserChats !== null) {
+        if ($allowUserChats !== null)
             $payload['allow_user_chats'] = $allowUserChats;
-        }
-        if ($allowBotChats !== null) {
+        if ($allowBotChats !== null)
             $payload['allow_bot_chats'] = $allowBotChats;
-        }
-        if ($allowGroupChats !== null) {
+        if ($allowGroupChats !== null)
             $payload['allow_group_chats'] = $allowGroupChats;
-        }
-        if ($allowChannelChats !== null) {
+        if ($allowChannelChats !== null)
             $payload['allow_channel_chats'] = $allowChannelChats;
-        }
         return $this->request('savePreparedInlineMessage', $extraParams ? array_merge($payload, $extraParams) : $payload);
     }
 

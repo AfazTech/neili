@@ -19,6 +19,7 @@ trait HandlesStories
      * Post a story on behalf of a managed business account.
      *
      * @param array $content InputStoryContent payload
+     * @param array|null $areas   Array of StoryArea payloads
      */
     public function postStory(
         string $businessConnectionId,
@@ -28,7 +29,9 @@ trait HandlesStories
         ?array $areas = null,
         ?bool $postToChatPage = null,
         ?bool $protectContent = null,
-        ?array $extraParams = null
+        ?array $extraParams = null,
+        ?string $parseMode = null,
+        ?array $captionEntities = null
     ): Future {
         $payload = [
             'business_connection_id' => $businessConnectionId,
@@ -36,18 +39,18 @@ trait HandlesStories
             'active_period' => $activePeriod,
         ];
 
-        if ($caption !== null) {
+        if ($caption !== null)
             $payload['caption'] = $caption;
-        }
-        if ($areas !== null) {
+        if ($parseMode !== null)
+            $payload['parse_mode'] = $parseMode;
+        if ($captionEntities !== null)
+            $payload['caption_entities'] = json_encode($captionEntities);
+        if ($areas !== null)
             $payload['areas'] = json_encode($areas);
-        }
-        if ($postToChatPage !== null) {
+        if ($postToChatPage !== null)
             $payload['post_to_chat_page'] = $postToChatPage;
-        }
-        if ($protectContent !== null) {
+        if ($protectContent !== null)
             $payload['protect_content'] = $protectContent;
-        }
 
         return $this->request('postStory', $extraParams ? array_merge($payload, $extraParams) : $payload);
     }
@@ -71,12 +74,10 @@ trait HandlesStories
             'active_period' => $activePeriod,
         ];
 
-        if ($postToChatPage !== null) {
+        if ($postToChatPage !== null)
             $payload['post_to_chat_page'] = $postToChatPage;
-        }
-        if ($protectContent !== null) {
+        if ($protectContent !== null)
             $payload['protect_content'] = $protectContent;
-        }
 
         return $this->request('repostStory', $extraParams ? array_merge($payload, $extraParams) : $payload);
     }
@@ -90,7 +91,9 @@ trait HandlesStories
         array $content,
         ?string $caption = null,
         ?array $areas = null,
-        ?array $extraParams = null
+        ?array $extraParams = null,
+        ?string $parseMode = null,
+        ?array $captionEntities = null
     ): Future {
         $payload = [
             'business_connection_id' => $businessConnectionId,
@@ -98,12 +101,14 @@ trait HandlesStories
             'content' => json_encode($content),
         ];
 
-        if ($caption !== null) {
+        if ($caption !== null)
             $payload['caption'] = $caption;
-        }
-        if ($areas !== null) {
+        if ($parseMode !== null)
+            $payload['parse_mode'] = $parseMode;
+        if ($captionEntities !== null)
+            $payload['caption_entities'] = json_encode($captionEntities);
+        if ($areas !== null)
             $payload['areas'] = json_encode($areas);
-        }
 
         return $this->request('editStory', $extraParams ? array_merge($payload, $extraParams) : $payload);
     }
