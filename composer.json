@@ -19,14 +19,25 @@
         "amphp/file": "^3.2",
         "amphp/http-client": "^5.3"
     },
+    "require-dev": {
+        "phpunit/phpunit": "^10.5"
+    },
     "autoload": {
         "psr-4": {
             "Neili\\": "src/"
         }
     },
+    "autoload-dev": {
+        "psr-4": {
+            "Neili\\Tests\\": "tests/"
+        }
+    },
+    "scripts": {
+        "test": "phpunit"
+    },
     "homepage": "https://github.com/imafaz/neili",
     "authors": [
-{
+        {
             "name": "Abolfazl Majidi (Afaz)",
             "email": "contact@afaz.me",
             "homepage": "https://afaz.me"

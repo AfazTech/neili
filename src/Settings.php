@@ -10,7 +10,6 @@ declare(strict_types=1);
 
 namespace Neili;
 
-use Amp\Http\Client\HttpClient;
 use Psr\Log\LoggerInterface;
 
 class Settings
@@ -71,13 +70,13 @@ class Settings
     private ?int $pollerMaxConcurrency = null;
 
     /**
-     * Optional custom HTTP client (proxy, custom connector, etc).
+     * Optional custom HTTP client.
      *
-     * When set, this instance is used as-is and HttpClientBuilder defaults
-     * are ignored. Callers remain responsible for the transfer / connect
-     * timeouts applied per-Request by Neili.
+     * Typed as object rather than Amp\Http\Client\HttpClient because that
+     * symbol has been observed as a class in some amphp/http-client builds.
+     * Any injected client must expose a compatible request() method.
      */
-    private ?HttpClient $httpClient = null;
+    private ?object $httpClient = null;
 
     /**
      * Logger instance
@@ -85,10 +84,12 @@ class Settings
     private LoggerInterface $logger;
 
     /**
-     * Constructor
-     * @param Logger|null $logger Optional custom logger
+     * Constructor.
+     *
+     * Accepts any PSR-3 logger so callers can plug in Monolog, NullLogger,
+     * or a custom implementation without extending Neili\Logger.
      */
-    public function __construct(?Logger $logger = null)
+    public function __construct(?LoggerInterface $logger = null)
     {
         $this->logger = $logger ?? new Logger('/neili.log');
     }
@@ -199,17 +200,13 @@ class Settings
 
     /**
      * Inject a pre-configured HTTP client.
-     *
-     * Useful for proxies, custom DNS connectors, custom TLS contexts, or
-     * request interceptors. Neili will apply its per-request timeouts on
-     * top of whatever the supplied client provides.
      */
-    public function setHttpClient(HttpClient $client): self { $this->httpClient = $client; return $this; }
+    public function setHttpClient(object $client): self { $this->httpClient = $client; return $this; }
 
     /**
      * Get the injected HTTP client, if any.
      */
-    public function getHttpClient(): ?HttpClient { return $this->httpClient; }
+    public function getHttpClient(): ?object { return $this->httpClient; }
 
     /**
      * Get logger instance

@@ -11,7 +11,6 @@ declare(strict_types=1);
 
 namespace Neili;
 
-use Amp\Http\Client\HttpClient;
 use Amp\Http\Client\HttpClientBuilder;
 use Amp\Future;
 use Neili\Client\Concerns\HandlesBusiness;
@@ -70,9 +69,14 @@ class Client
     private Settings $settings;
 
     /**
-     * HTTP client for async requests
+     * HTTP client for async requests.
+     *
+     * Typed as object rather than Amp\Http\Client\HttpClient because that
+     * symbol has been observed as a class in some amphp/http-client builds.
+     * Whatever value the builder or the caller provides just needs a
+     * compatible request() method.
      */
-    private HttpClient $httpClient;
+    private object $httpClient;
 
     /**
      * Extra grace period (seconds) added on top of a getUpdates long-poll
@@ -84,7 +88,7 @@ class Client
      * Constructor
      * Initializes the HTTP client and stores settings.
      *
-     * If Settings carries an injected HttpClient (e.g. one built with a
+     * If Settings carries an injected HTTP client (e.g. one built with a
      * proxy, custom connector, or interceptors), that instance is used;
      * otherwise the default builder is invoked. In amphp/http-client v5 the
      * transfer / connect timeouts are NOT configurable on HttpClientBuilder,
@@ -110,7 +114,7 @@ class Client
      * Provided so callers can rotate transport-level configuration (e.g.
      * a failing proxy) without rebuilding the whole Neili client.
      */
-    public function setHttpClient(HttpClient $client): void
+    public function setHttpClient(object $client): void
     {
         $this->httpClient = $client;
     }
