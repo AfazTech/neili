@@ -2,4 +2,5 @@ vendor
 .phpunit.cache
 .phpunit.result.cache
 cai.txt
+.cai*
 git-report.txt
