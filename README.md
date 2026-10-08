@@ -1,13 +1,13 @@
 # Neili — Asynchronous Telegram Bot Library for PHP
 
 Neili is an async-first PHP library built on **Amp** that streamlines building robust Telegram bots.
-It ships a non-blocking HTTP client, wrappers for the Telegram Bot API, a long-polling `Poller` with exponential backoff, concurrency control and error classification, a multi-process webhook handler, a fluent keyboard builder, and a lightweight PSR-3 logger.
+It ships a non-blocking HTTP client, wrappers for the Telegram Bot API, a long-polling `Poller` with exponential backoff, concurrency control and error classification, a multi-process webhook handler, and a fluent keyboard builder.
 
 **If this project helps you, please consider giving it a ⭐ to support future updates and features.**
 
 ### AI-Assisted Development
 
-For everything you need to know about this project — including AI-assisted ("vibe") coding — hand the `neili.txt` file to your AI assistant. It contains the full project structure, file contents, conventions and architecture.
+For everything you need to know about this project — including AI-assisted ("vibe") coding — hand the `Neili.txt` file to your AI assistant. It contains the full project structure, file contents, conventions and architecture.
 
 ---
 
@@ -20,7 +20,6 @@ For everything you need to know about this project — including AI-assisted ("v
 - [Quick Start](#quick-start)
 - [Configuration](#configuration)
   - [Settings Reference](#settings-reference)
-  - [Custom Logger](#custom-logger)
   - [Custom HTTP Client](#custom-http-client)
 - [Usage](#usage)
   - [Long Polling](#long-polling)
@@ -29,6 +28,7 @@ For everything you need to know about this project — including AI-assisted ("v
   - [Polling vs Webhook](#polling-vs-webhook)
 - [Error Handling](#error-handling)
   - [Exception Hierarchy](#exception-hierarchy)
+  - [Observing Errors](#observing-errors)
   - [Poller Error Policy](#poller-error-policy)
 - [Poller Reference](#poller-reference)
 - [Keyboard Builder](#keyboard-builder)
@@ -82,7 +82,7 @@ Neili wraps the Telegram Bot API with Amp-based asynchronous primitives. It offe
 - `KeyboardBuilder` fluent API for reply and inline keyboards (with ForceReply / ReplyKeyboardRemove helpers)
 - `Media` helper for local file uploads, auto-recognized inside InputMedia, InputPaidMedia, and InputRichMessage payloads
 - Streaming `downloadFile()` (64 KiB chunks) — safe for large files served by a local Bot API server
-- PSR-3 logging out of the box (async file logger by default)
+- Zero internal logging: errors are surfaced to the consumer through `Poller::onError()` and through the exception hierarchy
 - Full exception taxonomy: `TransientException`, `PermanentException`, `RateLimitException`
 
 ---
@@ -93,7 +93,6 @@ Neili wraps the Telegram Bot API with Amp-based asynchronous primitives. It offe
 - [**amphp/amp** ^3](https://github.com/amphp/amp)
 - [**amphp/file** ^3.2](https://github.com/amphp/file) — async file I/O
 - [**amphp/http-client** ^5.3](https://github.com/amphp/http-client) — non-blocking HTTP
-- [**psr/log** ^3.0](https://github.com/php-fig/log)
 - PHP extensions: `fileinfo`, `posix` (optional, recommended)
 - PHP function `exec()` — only required for **multi-process webhook mode**
 
@@ -135,6 +134,11 @@ $settings = (new Settings())
 $client = new Client($settings);
 $poller = new Poller($client);
 
+// Optional: observe errors that escape handlers or the poll loop
+$poller->onError(function (\Throwable $e, array $update, string $type) {
+    fwrite(STDERR, "[{$type}] {$e->getMessage()}\n");
+});
+
 $poller->onMessage(function (array $update) use ($client) {
     $chatId = $update['message']['chat']['id'] ?? null;
     $text   = $update['message']['text'] ?? null;
@@ -150,7 +154,7 @@ $poller->start();
 
 ## Configuration
 
-Neili is configured through a single `Neili\Settings` instance which is passed to the `Client` constructor.
+Neili is configured through a single `Neili\Settings` instance which is passed to the `Client` constructor. `Settings` has no constructor arguments and exposes only fluent setters plus their matching getters.
 
 ```php
 use Neili\Settings;
@@ -182,35 +186,6 @@ $client = new \Neili\Client($settings);
 | `setPollerMaxBackoff(int)` | `getPollerMaxBackoff()` | `int` | `32` | Maximum backoff delay (sec) |
 | `setPollerMaxConcurrency(?int)` | `getPollerMaxConcurrency()` | `?int` | `null` | Max concurrent async update handlers (`null` = unlimited) |
 | `setHttpClient(object)` | `getHttpClient()` | `?object` | `null` | Inject a pre-built HTTP client (must expose a `request()` method) |
-| *(constructor)* | `getLogger()` | `LoggerInterface` | `Neili\Logger('/neili.log')` | Any PSR-3 logger |
-
-### Custom Logger
-
-`Settings` accepts any PSR-3 logger. If omitted, Neili uses its own lightweight async file logger.
-
-```php
-use Neili\Settings;
-use Monolog\Logger as MonologLogger;
-use Monolog\Handler\StreamHandler;
-
-$logger = new MonologLogger('bot', [new StreamHandler('/var/log/bot.log')]);
-
-$settings = (new Settings($logger))->setAccessToken('YOUR_BOT_TOKEN');
-```
-
-**Default async logger** — `Neili\Logger`:
-
-```php
-use Neili\Logger;
-
-$logger = new Logger('/var/log/neili.log', printToConsole: true);
-```
-
-| Method | Description |
-| --- | --- |
-| `__construct(string $filePath, bool $printToConsole = true)` | Path to log file and whether to mirror to stdout |
-| `log($level, $message, array $context = [])` | PSR-3 method; interpolates `{key}` placeholders from `$context` |
-| `close(): Future` | Flushes and closes the file handle asynchronously |
 
 ### Custom HTTP Client
 
@@ -248,14 +223,14 @@ $settings = (new Settings())->setAccessToken('YOUR_BOT_TOKEN');
 $client   = new Client($settings);
 $poller   = new Poller($client);
 
-// Optional: catch errors raised inside any handler
+// Optional: observe errors raised inside handlers or by the poll loop
 $poller->onError(function (\Throwable $e, array $update, string $type) {
-    error_log("[$type] {$e->getMessage()}");
+    fwrite(STDERR, "[{$type}] {$e->getMessage()}\n");
 });
 
 // Global handler (fires for every update)
 $poller->onUpdate(function (array $update) {
-    // log all updates
+    // inspect every update
 });
 
 // Type-specific handlers
@@ -332,7 +307,7 @@ $client = new Client($settings);
 $client->handleUpdate('YOUR_SECRET_TOKEN');
 ```
 
-The worker reads the base64-encoded update from `$argv[1]` and re-enters `handleUpdate()` in CLI mode.
+The worker reads the base64-encoded update from `$argv[1]` and re-enters `handleUpdate()` in CLI mode. The child process is fire-and-forget; Neili does not attach any error callback to it — the consumer owns whatever happens inside the worker.
 
 ### Polling vs Webhook
 
@@ -371,8 +346,8 @@ try {
 } catch (TransientException $e) {
     // backoff and retry
 } catch (PermanentException $e) {
-    // log; do not retry — bad token, chat not found, etc.
-    echo $e->getErrorCode();     // e.g. 400
+    // do not retry — bad token, chat not found, etc.
+    echo $e->getErrorCode();      // e.g. 400
     print_r($e->getParameters()); // raw "parameters" block
 } catch (NeiliException $e) {
     // catch-all
@@ -394,18 +369,54 @@ $e->getParameters(): array
 // Standard \RuntimeException API
 ```
 
+### Observing Errors
+
+Neili does **not** ship an internal logger. There is no PSR-3 dependency, no `Neili\Logger`, no `error_log()` call inside the library, and no `getLogger()` method on `Settings`. Errors are surfaced exclusively through:
+
+1. **The exception hierarchy** — every `Client` method rejects its `Future` with one of the exceptions above, so callers can `try/catch` around `->await()`.
+2. **`Poller::onError(callable)`** — the only way to observe errors that occur **inside the poll loop**, including errors raised by user handlers.
+
+When you use the `Poller`, you decide where errors go: they can be routed to `fwrite(STDERR, ...)`, to any PSR-3 logger you already use in your application, to a metrics counter, or silently ignored.
+
+```php
+use Psr\Log\LoggerInterface;
+
+$poller->onError(function (\Throwable $e, array $update, string $type) use ($logger) {
+    $logger->error('neili.poller.error', [
+        'type'    => $type,
+        'message' => $e->getMessage(),
+        'update'  => $update,
+    ]);
+});
+```
+
+Because Neili itself has no dependency on PSR-3, the callback is the single integration point — wire it to whatever observability stack you already run.
+
 ### Poller Error Policy
 
-The `Poller` classifies each exception and reacts accordingly:
+`Poller::onError()` receives every error that escapes a handler or that the poll loop decides to recover from. Its signature is:
 
-| Exception | Poller Behavior |
-| --- | --- |
-| `RateLimitException` | Sleeps exactly `retry_after` seconds, then continues (ignores exponential backoff) |
-| `TransientException` | Logs a warning, applies exponential backoff (base × 2^n, capped at `pollerMaxBackoff`, with up to 1 s of positive jitter) and continues. After **3 consecutive** transient failures the underlying HTTP client is rebuilt via `Client::reconnect()` |
-| `PermanentException` | Logs an error, stops the poller, and rethrows |
-| Any other `Throwable` | Treated as transient — logged and retried with backoff |
+```php
+fn(\Throwable $e, array $update, string $type): void
+```
 
-A successful `getUpdates` call resets all failure counters.
+- `$type = 'message'` (or any other detected update type) for a type-specific handler failure.
+- `$type = 'onUpdate'` for a failure in the global update handler.
+- `$type = 'poller'` for a failure raised by the poll loop itself (getUpdates, reconnect, pre-loop discard). In this case `$update` is `[]`.
+
+| Exception / Source | Reaches `onError()`? | Poller Behavior |
+| --- | --- | --- |
+| Handler exception (`onMessage`, `onUpdate`, …) | ✅ Yes | Reported; loop continues |
+| `RateLimitException` | ✅ Yes | Reported; sleep exactly `retry_after` seconds, then continue (bypasses exponential backoff) |
+| `TransientException` | ✅ Yes | Reported; exponential backoff (base × 2^n, capped at `pollerMaxBackoff`, with up to 1 s of jitter) and continue. After **3 consecutive** transient failures the underlying HTTP client is rebuilt via `Client::reconnect()` |
+| Reconnect failure | ✅ Yes (`type = 'poller'`) | Reported; loop continues |
+| Any other `Throwable` | ✅ Yes | Treated as transient; reported and retried with backoff |
+| `PermanentException` in the main loop | ❌ No | Poller stops (`isRunning()` becomes `false`) and the exception is rethrown from `start()` so the caller observes it |
+| `PermanentException` during `discardOldUpdates` | ❌ No | Poller stops and the exception is rethrown from `start()`, exactly like the main loop |
+
+A successful `getUpdates` call resets both the failure counter and the consecutive-failure counter used for reconnecting.
+
+**Exceptions thrown by the `onError` callback itself are swallowed** to keep the poll loop alive. This is intentional: a broken observability hook must not take down the bot.
 
 ---
 
@@ -428,7 +439,7 @@ $poller = new Poller($client);
 | Method | Description |
 | --- | --- |
 | `onUpdate(callable $cb)` | Fires for **every** update, in addition to type-specific handlers |
-| `onError(callable $cb)` | Signature `fn(\Throwable $e, array $update, string $type): void`. Called in addition to logging; exceptions inside it are swallowed |
+| `onError(callable $cb)` | Signature `fn(\Throwable $e, array $update, string $type): void`. The only error-observation channel Neili offers. Exceptions thrown inside it are swallowed |
 
 ### Type-Specific Handlers
 
@@ -519,6 +530,10 @@ KeyboardBuilder::forceReplyObject('Reply to me', selective: false);
 KeyboardBuilder::removeKeyboard(true);
 // → ['remove_keyboard' => true, 'selective' => true]
 ```
+
+---
+
+## Media Uploads
 
 ### `Media`
 

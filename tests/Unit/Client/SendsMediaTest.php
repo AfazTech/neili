@@ -10,13 +10,12 @@ use Neili\Media;
 use Neili\Settings;
 use Neili\Tests\Support\FakeHttpClient;
 use PHPUnit\Framework\TestCase;
-use Psr\Log\NullLogger;
 
 final class SendsMediaTest extends TestCase
 {
     private function makeClient(FakeHttpClient $http): Client
     {
-        $settings = (new Settings(new NullLogger()))
+        $settings = (new Settings())
             ->setAccessToken('123:abc')
             ->setHttpClient($http);
 

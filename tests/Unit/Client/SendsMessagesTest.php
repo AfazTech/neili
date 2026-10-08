@@ -11,13 +11,12 @@ use Neili\Exceptions\TransientException;
 use Neili\Settings;
 use Neili\Tests\Support\FakeHttpClient;
 use PHPUnit\Framework\TestCase;
-use Psr\Log\NullLogger;
 
 final class SendsMessagesTest extends TestCase
 {
     private function makeClient(FakeHttpClient $http): Client
     {
-        $settings = (new Settings(new NullLogger()))
+        $settings = (new Settings())
             ->setAccessToken('123:abc')
             ->setApiUrl('https://api.telegram.org/bot')
             ->setHttpClient($http);

@@ -6,7 +6,6 @@ namespace Neili\Tests\Unit;
 
 use Neili\Settings;
 use PHPUnit\Framework\TestCase;
-use Psr\Log\NullLogger;
 
 final class SettingsTest extends TestCase
 {
@@ -59,13 +58,6 @@ final class SettingsTest extends TestCase
         self::assertSame(5, $settings->getConnectionTimeout());
     }
 
-    public function testCustomLoggerIsUsed(): void
-    {
-        $logger = new NullLogger();
-        $settings = new Settings($logger);
-        self::assertSame($logger, $settings->getLogger());
-    }
-
     public function testSetMultiProcessThrowsWhenExecMissing(): void
     {
         if (function_exists('exec')) {
@@ -85,5 +77,34 @@ final class SettingsTest extends TestCase
 
         $settings = (new Settings())->setMultiProcess(true);
         self::assertTrue($settings->isMultiProcess());
+    }
+
+    public function testSettingsDoesNotExposeLoggerApi(): void
+    {
+        $reflection = new \ReflectionClass(Settings::class);
+
+        self::assertFalse(
+            method_exists(Settings::class, 'getLogger'),
+            'Settings must not expose a get-logger method after logger removal'
+        );
+
+        self::assertFalse(
+            $reflection->hasProperty('logger'),
+            'Settings must not declare a logger property after logger removal'
+        );
+
+        $constructor = $reflection->getConstructor();
+        if ($constructor !== null) {
+            self::assertSame(
+                0,
+                $constructor->getNumberOfParameters(),
+                'Settings constructor must not accept any parameter after logger removal'
+            );
+            self::assertSame(
+                0,
+                $constructor->getNumberOfRequiredParameters(),
+                'Settings constructor must not require any parameter after logger removal'
+            );
+        }
     }
 }

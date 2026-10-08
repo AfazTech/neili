@@ -10,8 +10,6 @@ declare(strict_types=1);
 
 namespace Neili;
 
-use Psr\Log\LoggerInterface;
-
 class Settings
 {
     /**
@@ -77,22 +75,6 @@ class Settings
      * Any injected client must expose a compatible request() method.
      */
     private ?object $httpClient = null;
-
-    /**
-     * Logger instance
-     */
-    private LoggerInterface $logger;
-
-    /**
-     * Constructor.
-     *
-     * Accepts any PSR-3 logger so callers can plug in Monolog, NullLogger,
-     * or a custom implementation without extending Neili\Logger.
-     */
-    public function __construct(?LoggerInterface $logger = null)
-    {
-        $this->logger = $logger ?? new Logger('/neili.log');
-    }
 
     /**
      * Set bot access token
@@ -207,11 +189,6 @@ class Settings
      * Get the injected HTTP client, if any.
      */
     public function getHttpClient(): ?object { return $this->httpClient; }
-
-    /**
-     * Get logger instance
-     */
-    public function getLogger(): LoggerInterface { return $this->logger; }
 
     /**
      * Set poller request timeout

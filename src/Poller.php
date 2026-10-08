@@ -24,12 +24,11 @@ class Poller
     private Client $client;
     private array $handlers = [];
     private $updateHandler = null; // backward compatible single update callback
-    private $errorHandler = null; // optional handler error callback
+    private $errorHandler = null; // optional error callback, the only error outlet
     private int $offset = 0; // last processed update ID
     private bool $running = false; // poller active state
     private ?Future $mainFuture = null; // main async loop future
     private string $lockFile = 'neili.lock'; // optional lock file for single instance
-    private Logger $logger;
     private ?LocalSemaphore $semaphore = null; // concurrency control semaphore
 
     /**
@@ -39,10 +38,15 @@ class Poller
      */
     private const RECONNECT_AFTER_CONSECUTIVE_FAILURES = 3;
 
+    /**
+     * Type identifier passed to onError() for failures raised by the poll
+     * loop itself (as opposed to per-update handler failures).
+     */
+    private const POLLER_ERROR_TYPE = 'poller';
+
     public function __construct(Client $client)
     {
         $this->client = $client;
-        $this->logger = $this->client->getSettings()->getLogger();
 
         $maxConcurrency = $this->client->getSettings()->getPollerMaxConcurrency();
         $this->semaphore = $maxConcurrency ? new LocalSemaphore($maxConcurrency) : null;
@@ -55,12 +59,19 @@ class Poller
     }
 
     /**
-     * Register a callback invoked when a per-update handler throws.
+     * Register a callback invoked whenever an error escapes a handler or
+     * the poll loop. This is the only error-observation channel Neili
+     * offers; the library does not log on its own.
      *
      * Signature: fn(\Throwable $e, array $update, string $type): void
      *
-     * The callback is invoked *in addition to* logging; exceptions thrown
-     * by the callback itself are swallowed to keep the poll loop alive.
+     * When the error originates from a per-update handler, $update holds the
+     * offending update and $type the detected update type (or 'onUpdate' for
+     * the global handler). When the error originates from the poll loop
+     * itself, $update is an empty array and $type is 'poller'.
+     *
+     * Exceptions thrown by the callback are swallowed to keep the poll loop
+     * alive.
      */
     public function onError(callable $callback): void
     {
@@ -68,12 +79,10 @@ class Poller
     }
 
     /**
-     * Report a handler error to both the logger and the onError callback.
+     * Dispatch an error to the onError callback when one is registered.
      */
-    private function reportHandlerError(\Throwable $e, array $update, string $type): void
+    private function reportError(\Throwable $e, array $update, string $type): void
     {
-        $this->logger->error("Handler error for {$type}: " . $e->getMessage());
-
         if ($this->errorHandler === null) {
             return;
         }
@@ -81,7 +90,9 @@ class Poller
         try {
             ($this->errorHandler)($e, $update, $type);
         } catch (\Throwable $inner) {
-            $this->logger->error("onError handler error: " . $inner->getMessage());
+            // The consumer's onError callback is itself misbehaving.
+            // Letting it propagate would kill the poll loop, and Neili has
+            // no internal logger to record it, so swallow it here.
         }
     }
 
@@ -168,25 +179,41 @@ class Poller
         // IMPORTANT: use a short-poll fetch (timeout=0) here, not the long-poll $timeout,
         // otherwise a real incoming message arriving right at startup could be consumed
         // by this throwaway request and silently lost.
+        //
+        // Error policy for this pre-loop fetch mirrors the main loop:
+        //   - PermanentException is fatal: stop the poller and surface the
+        //     error to the caller without routing it through onError().
+        //   - Any other failure (transient, rate limit, unknown) is reported
+        //     via onError() and the main loop is allowed to proceed.
         if ($discardOldUpdates) {
             try {
                 $latest = $this->client->getUpdates(null, null, 0)->await();
                 $result = $latest['result'] ?? [];
                 if ($result) $this->offset = (int) end($result)['update_id'] + 1;
+            } catch (PermanentException $e) {
+                $this->running = false;
+                throw $e;
             } catch (\Throwable $e) {
-                $this->logger->warning("Discard old updates failed: ".$e->getMessage());
+                $this->reportError($e, [], self::POLLER_ERROR_TYPE);
             }
         }
 
         // Main asynchronous polling loop.
         //
         // Error handling policy (see project docs "Error Handling"):
-        //   - TransientException: network/5xx - log, backoff, optionally
-        //     reconnect the HTTP client, then continue polling.
+        //   - TransientException: network/5xx - backoff, optionally reconnect
+        //     the HTTP client, then continue polling.
         //   - RateLimitException (429): respect retry_after and continue.
-        //   - PermanentException: fatal (e.g. invalid token) - stop and rethrow.
+        //   - PermanentException: fatal (e.g. invalid token) - stop and
+        //     rethrow so the consumer observes it.
         //   - Any other Throwable: treat as transient (safe default).
         // A successful getUpdates resets both backoff counters.
+        // Handled errors are surfaced through onError() when registered;
+        // otherwise they are retried silently.
+        //
+        // Note: Amp v3's delay() takes seconds, so computeBackoff() and
+        // RateLimitException::getRetryAfter() feed it directly without any
+        // millisecond conversion.
         $this->mainFuture = async(function () use ($timeout, $backoffBase, $maxBackoff) {
             $failureCount = 0;
             $connectionFailureCount = 0;
@@ -218,14 +245,14 @@ class Poller
                                     try {
                                         $handler($update);
                                     } catch (\Throwable $e) {
-                                        $this->reportHandlerError($e, $update, $type);
+                                        $this->reportError($e, $update, $type);
                                     }
                                 }
                                 if ($this->updateHandler !== null) {
                                     try {
                                         ($this->updateHandler)($update);
                                     } catch (\Throwable $e) {
-                                        $this->reportHandlerError($e, $update, 'onUpdate');
+                                        $this->reportError($e, $update, 'onUpdate');
                                     }
                                 }
                             } finally { $lock?->release(); }
@@ -235,57 +262,43 @@ class Poller
                     // Telegram explicitly told us how long to wait. Prefer that
                     // value over the exponential backoff.
                     $retryAfter = max(1, $e->getRetryAfter());
-                    $this->logger->warning(
-                        "Telegram rate limit hit (retry_after={$retryAfter}s): {$e->getMessage()}"
-                    );
-                    delay($retryAfter * 1000);
+                    $this->reportError($e, [], self::POLLER_ERROR_TYPE);
+                    delay($retryAfter);
                     continue;
                 } catch (TransientException $e) {
                     $failureCount++;
                     $connectionFailureCount++;
 
                     $delaySeconds = $this->computeBackoff($failureCount, $backoffBase, $maxBackoff);
-
-                    $this->logger->warning(
-                        "Transient poller error (attempt {$failureCount}): {$e->getMessage()} | retry in {$delaySeconds}s"
-                    );
+                    $this->reportError($e, [], self::POLLER_ERROR_TYPE);
 
                     if ($connectionFailureCount >= self::RECONNECT_AFTER_CONSECUTIVE_FAILURES) {
-                        $this->logger->info(
-                            "Resetting HTTP client after {$connectionFailureCount} consecutive transient failures"
-                        );
                         try {
                             $this->client->reconnect();
                         } catch (\Throwable $re) {
-                            $this->logger->error("HTTP client reconnect failed: ".$re->getMessage());
+                            $this->reportError($re, [], self::POLLER_ERROR_TYPE);
                         }
                         $connectionFailureCount = 0;
                     }
 
-                    delay((int) round($delaySeconds * 1000));
+                    delay($delaySeconds);
                     continue;
                 } catch (PermanentException $e) {
-                    $this->logger->error(
-                        "Permanent Telegram error, stopping poller: {$e->getMessage()}"
-                    );
+                    // Surface to the caller through the awaited future.
                     $this->running = false;
                     throw $e;
                 } catch (\Throwable $e) {
-                    // Unknown error: err on the side of resiliency, but keep
-                    // the bot observable via logs.
+                    // Unknown error: err on the side of resiliency and let the
+                    // consumer observe it via onError() when registered.
                     $failureCount++;
                     $delaySeconds = $this->computeBackoff($failureCount, $backoffBase, $maxBackoff);
 
-                    $this->logger->error(
-                        "Unexpected poller error (attempt {$failureCount}): {$e->getMessage()} | retry in {$delaySeconds}s"
-                    );
+                    $this->reportError($e, [], self::POLLER_ERROR_TYPE);
 
-                    delay((int) round($delaySeconds * 1000));
+                    delay($delaySeconds);
                     continue;
                 }
             }
-
-            $this->logger->info("Poller stopped");
         });
 
         $this->mainFuture->await();

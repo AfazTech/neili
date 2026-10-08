@@ -244,13 +244,6 @@ trait MakesHttpRequests
 
                 return $this->handleResponse($status, (string) $body);
             } catch (\Throwable $e) {
-                $this->settings->getLogger()->error(
-                    "HTTP request failed | " .
-                    "Message: " . $e->getMessage() .
-                    " | File: " . $e->getFile() .
-                    " | Line: " . $e->getLine() .
-                    " | Trace: " . $e->getTraceAsString()
-                );
                 throw $this->translateTransportError($e);
             }
         });
@@ -288,13 +281,6 @@ trait MakesHttpRequests
 
                 return $this->handleResponse($status, (string) $body);
             } catch (\Throwable $e) {
-                $this->settings->getLogger()->error(
-                    "HTTP request failed | " .
-                    "Message: " . $e->getMessage() .
-                    " | File: " . $e->getFile() .
-                    " | Line: " . $e->getLine() .
-                    " | Trace: " . $e->getTraceAsString()
-                );
                 throw $this->translateTransportError($e);
             }
         });

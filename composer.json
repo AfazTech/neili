@@ -15,7 +15,6 @@
     ],
     "require": {
         "php": ">=8.1",
-        "psr/log": "^3.0",
         "amphp/file": "^3.2",
         "amphp/http-client": "^5.3"
     },

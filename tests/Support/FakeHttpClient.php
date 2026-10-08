@@ -19,6 +19,10 @@ use function Amp\ByteStream\buffer;
  * FIFO order. Every received Request and its serialized body are captured so
  * tests can assert against the outgoing payload without touching the network.
  *
+ * pushThrow() queues a transport-level failure: the next request() call will
+ * throw the given Throwable synchronously instead of returning a Response.
+ * This is used to exercise Neili's translateTransportError() path.
+ *
  * This class intentionally does not implement any amphp interface: across
  * amphp/http-client builds the HttpClient symbol is inconsistent (interface
  * in some releases, class in others), so we rely on the structural typing
@@ -29,7 +33,7 @@ final class FakeHttpClient
     /** @var array<int, array{request: Request, body: string}> */
     private array $captured = [];
 
-    /** @var array<int, array{0: int, 1: string}> */
+    /** @var array<int, array{0: int, 1: string}|\Throwable> */
     private array $responses = [];
 
     /**
@@ -46,6 +50,15 @@ final class FakeHttpClient
     public function pushJsonResponse(array $payload, int $status = 200): void
     {
         $this->responses[] = [$status, json_encode($payload, JSON_THROW_ON_ERROR)];
+    }
+
+    /**
+     * Queue a transport-level failure. The next request() call will throw
+     * the given Throwable synchronously instead of returning a Response.
+     */
+    public function pushThrow(\Throwable $error): void
+    {
+        $this->responses[] = $error;
     }
 
     /**
@@ -108,7 +121,13 @@ final class FakeHttpClient
             throw new \RuntimeException('FakeHttpClient: no queued responses remaining');
         }
 
-        [$status, $body] = array_shift($this->responses);
+        $next = array_shift($this->responses);
+
+        if ($next instanceof \Throwable) {
+            throw $next;
+        }
+
+        [$status, $body] = $next;
 
         return new Response(
             '1.1',
