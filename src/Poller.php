@@ -220,11 +220,23 @@ class Poller
 
             while ($this->running) {
                 try {
+                    // Only restrict allowed_updates when at least one
+                    // type-specific handler is registered. An empty array
+                    // is meaningful to Telegram: it means "all updates
+                    // except chat_member, message_reaction, and
+                    // message_reaction_count". Sending it while only a
+                    // global onUpdate() handler is registered would
+                    // silently drop those three update types, so we pass
+                    // null instead.
+                    $allowedUpdates = $this->handlers !== []
+                        ? array_keys($this->handlers)
+                        : null;
+
                     $response = $this->client->getUpdates(
                         $this->offset,
                         null,
                         $timeout,
-                        array_keys($this->handlers)
+                        $allowedUpdates
                     )->await();
 
                     // Success: reset backoff / reconnect counters.
