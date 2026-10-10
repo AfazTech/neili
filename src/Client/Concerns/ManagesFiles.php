@@ -12,18 +12,12 @@ declare(strict_types=1);
 namespace Neili\Client\Concerns;
 
 use Amp\File;
-use Amp\Http\Client\Request;
 use Amp\Future;
+use Amp\Http\Client\Request;
 use function Amp\async;
 
 trait ManagesFiles
 {
-    /**
-     * Chunk size used while streaming remote files to disk.
-     * 64 KiB balances syscall overhead against per-chunk memory pressure.
-     */
-    private const DOWNLOAD_CHUNK_SIZE = 65536;
-
     /**
      * Get file info from Telegram server.
      */
@@ -37,51 +31,54 @@ trait ManagesFiles
      */
     public function getFileUrl(string $filePath): string
     {
-        return "https://api.telegram.org/file/bot" . $this->settings->getAccessToken() . "/" . $filePath;
+        return "https://api.telegram.org/file/bot"
+            . $this->settings->getAccessToken()
+            . "/" . ltrim($filePath, '/');
     }
 
     /**
      * Download file from Telegram servers.
      *
-     * The response body is streamed to disk in chunks instead of being
-     * buffered in memory, so the method is safe for large files (e.g. when
-     * the bot runs against a local Bot API server with the 2 GB limit).
+     * Runs inside an Amp Fiber (via async()). Every awaitable operation
+     * uses ->await() instead of yield, because this codebase targets
+     * amphp v3 where yield is not the suspension primitive. Using yield
+     * inside the closure would turn it into a Generator that async()
+     * never executes, leaving the destination file unwritten.
+     *
+     * The response body is streamed chunk by chunk so large files do
+     * not have to fit in memory.
      *
      * Returns the destination path on success.
      */
     public function downloadFile(string $fileId, string $destinationPath): Future
     {
-        return async(function () use ($fileId, $destinationPath) {
-            $fileInfo = yield $this->getFile($fileId);
+        return async(function () use ($fileId, $destinationPath): string {
+            $fileInfo = $this->getFile($fileId)->await();
+
             if (!isset($fileInfo['result']['file_path'])) {
                 throw new \RuntimeException("Invalid file_id or file not found");
             }
 
-            $remotePath = $fileInfo['result']['file_path'];
-            $url = "https://api.telegram.org/file/bot" . $this->settings->getAccessToken() . "/" . $remotePath;
-
-            $request = new Request($url);
+            $request = new Request($this->getFileUrl($fileInfo['result']['file_path']));
             $request->setTransferTimeout((float) $this->settings->getTimeout());
             $request->setTcpConnectTimeout((float) $this->settings->getConnectionTimeout());
 
-            $response = yield $this->httpClient->request($request);
+            $response = $this->httpClient->request($request);
 
-            if ($response->getStatus() >= 400) {
+            if ($response->getStatus() >= 300) {
                 throw new \RuntimeException(
                     "Failed to download file: HTTP " . $response->getStatus()
                 );
             }
 
-            $handle = yield File\openFile($destinationPath, 'w');
+            $handle = File\openFile($destinationPath, 'w');
 
             try {
-                $body = $response->getBody();
-
-                while (null !== $chunk = yield $body->read(self::DOWNLOAD_CHUNK_SIZE)) {
-                    yield $handle->write($chunk);
+                foreach ($response->getBody() as $chunk) {
+                    $handle->write($chunk);
                 }
             } finally {
-                yield $handle->close();
+                $handle->close();
             }
 
             return $destinationPath;
