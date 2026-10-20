@@ -214,23 +214,18 @@ class Poller
         // Note: Amp v3's delay() takes seconds, so computeBackoff() and
         // RateLimitException::getRetryAfter() feed it directly without any
         // millisecond conversion.
-        $this->mainFuture = async(function () use ($timeout, $backoffBase, $maxBackoff) {
+        $this->mainFuture = async(function () use ($timeout, $backoffBase, $maxBackoff, $settings) {
             $failureCount = 0;
             $connectionFailureCount = 0;
 
             while ($this->running) {
                 try {
-                    // Only restrict allowed_updates when at least one
-                    // type-specific handler is registered. An empty array
-                    // is meaningful to Telegram: it means "all updates
-                    // except chat_member, message_reaction, and
-                    // message_reaction_count". Sending it while only a
-                    // global onUpdate() handler is registered would
-                    // silently drop those three update types, so we pass
-                    // null instead.
-                    $allowedUpdates = $this->handlers !== []
-                        ? array_keys($this->handlers)
-                        : null;
+                    // Always request the full configured set of update types.
+                    // Telegram's own default excludes chat_member,
+                    // message_reaction, and message_reaction_count, which
+                    // means any handler registered for those types would
+                    // otherwise never fire.
+                    $allowedUpdates = $settings->getPollerAllowedUpdates();
 
                     $response = $this->client->getUpdates(
                         $this->offset,

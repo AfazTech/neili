@@ -68,6 +68,48 @@ class Settings
     private ?int $pollerMaxConcurrency = null;
 
     /**
+     * Update types requested from Telegram by the poller.
+     *
+     * Defaults to the full list of update types Neili supports so that
+     * opt-in types such as chat_member, message_reaction, and
+     * message_reaction_count are delivered out of the box. Telegram's
+     * own default allowed_updates explicitly excludes those three, so
+     * relying on the server default silently drops them.
+     *
+     * Set an empty array to restore Telegram's default filtering, or
+     * pass an explicit list to restrict the update stream further.
+     *
+     * @var array<int, string>
+     */
+    private array $pollerAllowedUpdates = [
+        'message',
+        'edited_message',
+        'channel_post',
+        'edited_channel_post',
+        'business_connection',
+        'business_message',
+        'edited_business_message',
+        'deleted_business_messages',
+        'message_reaction',
+        'message_reaction_count',
+        'inline_query',
+        'chosen_inline_result',
+        'callback_query',
+        'shipping_query',
+        'pre_checkout_query',
+        'purchased_paid_media',
+        'poll',
+        'poll_answer',
+        'my_chat_member',
+        'chat_member',
+        'chat_join_request',
+        'chat_boost',
+        'removed_chat_boost',
+        'managed_bot',
+        'guest_message',
+    ];
+
+    /**
      * Optional custom HTTP client.
      *
      * Typed as object rather than Amp\Http\Client\HttpClient because that
@@ -179,6 +221,25 @@ class Settings
      * Get maximum concurrent handlers
      */
     public function getPollerMaxConcurrency(): ?int { return $this->pollerMaxConcurrency; }
+
+    /**
+     * Set the update types the poller requests from Telegram.
+     *
+     * @param array<int, string> $types
+     */
+    public function setPollerAllowedUpdates(array $types): self {
+        $this->pollerAllowedUpdates = array_values($types);
+        return $this;
+    }
+
+    /**
+     * Get the update types the poller requests from Telegram.
+     *
+     * @return array<int, string>
+     */
+    public function getPollerAllowedUpdates(): array {
+        return $this->pollerAllowedUpdates;
+    }
 
     /**
      * Inject a pre-configured HTTP client.
