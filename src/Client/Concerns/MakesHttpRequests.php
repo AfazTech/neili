@@ -23,17 +23,11 @@ use function Amp\async;
 
 trait MakesHttpRequests
 {
-    /**
-     * Checks if a string is a valid URL
-     */
     private static function isUrl(string $string): bool
     {
         return filter_var($string, FILTER_VALIDATE_URL) !== false;
     }
 
-    /**
-     * Resolve the appropriate per-request timeout for the given method.
-     */
     private function resolveRequestTimeout(string $method, array $params): float
     {
         if ($method === 'getUpdates') {
@@ -44,9 +38,6 @@ trait MakesHttpRequests
         return (float) $this->settings->getTimeout();
     }
 
-    /**
-     * Apply Settings-based timeouts to a Request.
-     */
     private function applyTimeouts(Request $request, string $method, array $params): void
     {
         $timeout = $this->resolveRequestTimeout($method, $params);
@@ -56,12 +47,6 @@ trait MakesHttpRequests
         $request->setTcpConnectTimeout((float) $this->settings->getConnectionTimeout());
     }
 
-    /**
-     * Build an InputProfilePhoto payload and companion files array.
-     *
-     * @param array|Media $photo
-     * @return array Tuple of [payload, files]
-     */
     private function buildInputProfilePhoto(array|Media $photo): array
     {
         if (!($photo instanceof Media)) {
@@ -92,19 +77,6 @@ trait MakesHttpRequests
         ];
     }
 
-    /**
-     * Replace Media objects inside an InputMedia payload with
-     * "attach://<key>" references, collecting the corresponding local files
-     * into the provided $attachments map (by reference).
-     *
-     * The set of fields scanned covers every InputMedia variant defined by
-     * the Telegram Bot API which can carry a binary payload: media, photo,
-     * thumbnail, and cover.
-     *
-     * @param array $media InputMedia payload
-     * @param array $attachments File map populated by reference
-     * @return array Normalized InputMedia payload
-     */
     private function extractMediaAttachments(array $media, array &$attachments): array
     {
         foreach (['media', 'photo', 'thumbnail', 'cover'] as $field) {
@@ -126,18 +98,6 @@ trait MakesHttpRequests
         return $media;
     }
 
-    /**
-     * Normalize an InputPollMedia / InputPollOptionMedia value.
-     *
-     * Both shapes share the same grammar: an object with a "type" field and,
-     * for concrete media variants, a "media" (or "photo") field that can hold
-     * a Media object. Location and venue variants carry coordinates instead.
-     *
-     * @param array|null $media
-     * @param array      $attachments File map populated by reference
-     * @param string     $prefix      Unique prefix for generated attach keys
-     * @return array|null
-     */
     private function extractPollMediaAttachments(?array $media, array &$attachments, string $prefix): ?array
     {
         if ($media === null) {
@@ -168,6 +128,11 @@ trait MakesHttpRequests
     /**
      * Translate HTTP status + decoded Telegram payload into Neili exceptions.
      *
+     * When the body is not valid JSON, the first 500 characters of the
+     * raw body are included in the exception message. This makes it
+     * possible to tell apart a real Telegram 400 (JSON with
+     * "description") from a proxy / WAF response (HTML).
+     *
      * @throws TransientException on transient failures
      * @throws RateLimitException on HTTP 429
      * @throws PermanentException on non-recoverable errors
@@ -181,8 +146,10 @@ trait MakesHttpRequests
         $decoded = json_decode($body, true);
 
         if (!is_array($decoded)) {
+            $preview = trim(preg_replace('/\s+/', ' ', mb_substr($body, 0, 500)) ?? '');
             throw new TransientException(
-                "Invalid JSON response from Telegram API (HTTP {$status})",
+                "Invalid JSON response from Telegram API (HTTP {$status}). "
+                . "Body preview: {$preview}",
                 $status
             );
         }
@@ -207,10 +174,6 @@ trait MakesHttpRequests
         return $decoded;
     }
 
-    /**
-     * Convert a low-level transport failure into a TransientException so the
-     * Poller can retry without dying.
-     */
     private function translateTransportError(\Throwable $e): \Throwable
     {
         if ($e instanceof NeiliException) {
@@ -224,9 +187,6 @@ trait MakesHttpRequests
         return new TransientException("Transport error: {$e->getMessage()}", (int) $e->getCode(), $e);
     }
 
-    /**
-     * Perform async HTTP request to Telegram API
-     */
     private function request(string $method, array $params = []): Future
     {
         $url = $this->settings->getApiUrl() . $this->settings->getAccessToken() . '/' . $method;
@@ -250,7 +210,15 @@ trait MakesHttpRequests
     }
 
     /**
-     * Send request with file upload support.
+     * Send a request with file upload support.
+     *
+     * Every uploaded file is sent with the generic
+     * "application/octet-stream" MIME type instead of the MIME guessed
+     * from its extension. Telegram identifies documents by file name
+     * and content, not by the multipart Content-Type, but some proxies
+     * and WAFs reject uploads whose MIME looks like "text/html". Using
+     * a neutral binary MIME avoids that class of 400 responses without
+     * changing what the user receives.
      */
     private function requestWithFile(string $method, array $fields, array $files = []): Future
     {
@@ -266,9 +234,10 @@ trait MakesHttpRequests
 
                 foreach ($files as $key => $filePath) {
                     $realPath = realpath($filePath);
-                    if (!$realPath)
+                    if (!$realPath) {
                         throw new \RuntimeException("File not found: $filePath");
-                    $form->addFile($key, $realPath);
+                    }
+                    $form->addFile($key, $realPath, 'application/octet-stream');
                 }
 
                 $request = new Request($url, 'POST');
