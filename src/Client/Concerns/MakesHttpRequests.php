@@ -11,7 +11,6 @@ declare(strict_types=1);
 
 namespace Neili\Client\Concerns;
 
-use Amp\Http\Client\Form;
 use Amp\Http\Client\Request;
 use Amp\Future;
 use Neili\Exceptions\NeiliException;
@@ -129,9 +128,9 @@ trait MakesHttpRequests
      * Translate HTTP status + decoded Telegram payload into Neili exceptions.
      *
      * When the body is not valid JSON, the first 500 characters of the
-     * raw body are included in the exception message. This makes it
-     * possible to tell apart a real Telegram 400 (JSON with
-     * "description") from a proxy / WAF response (HTML).
+     * raw body are included in the exception message so that it is
+     * possible to distinguish a real Telegram 400 (JSON with
+     * "description") from a proxy / upstream failure (HTML).
      *
      * @throws TransientException on transient failures
      * @throws RateLimitException on HTTP 429
@@ -212,13 +211,22 @@ trait MakesHttpRequests
     /**
      * Send a request with file upload support.
      *
-     * Every uploaded file is sent with the generic
-     * "application/octet-stream" MIME type instead of the MIME guessed
-     * from its extension. Telegram identifies documents by file name
-     * and content, not by the multipart Content-Type, but some proxies
-     * and WAFs reject uploads whose MIME looks like "text/html". Using
-     * a neutral binary MIME avoids that class of 400 responses without
-     * changing what the user receives.
+     * The multipart body is constructed as a single pre-sized string
+     * instead of using Amp\Http\Client\Form. With Form, the underlying
+     * HTTP client sends the body with Transfer-Encoding: chunked
+     * because the form's length cannot be known ahead of time (file
+     * handles are streams). Telegram's own nginx rejects chunked
+     * multipart uploads with 400 Bad Request, so a real-world
+     * sendDocument of a ~160KB HTML file fails even though the exact
+     * same request sent with curl (which always sends a Content-Length)
+     * succeeds.
+     *
+     * Building the body as a plain string lets Amp\Http\Client set a
+     * correct Content-Length automatically (the string is buffered),
+     * which is what Telegram expects. Every uploaded file uses the
+     * neutral "application/octet-stream" content type; Telegram
+     * identifies documents by file name and content, not by MIME, so
+     * the user still receives the same file with the same name.
      */
     private function requestWithFile(string $method, array $fields, array $files = []): Future
     {
@@ -226,10 +234,15 @@ trait MakesHttpRequests
 
         return async(function () use ($url, $method, $fields, $files) {
             try {
-                $form = new Form();
+                $boundary = '----NeiliBoundary' . bin2hex(random_bytes(16));
+
+                $body = '';
 
                 foreach ($fields as $key => $value) {
-                    $form->addField($key, (string) $value);
+                    $safeKey = str_replace(['"', "\r", "\n"], ['', '', ''], (string) $key);
+                    $body .= "--{$boundary}\r\n";
+                    $body .= "Content-Disposition: form-data; name=\"{$safeKey}\"\r\n\r\n";
+                    $body .= (string) $value . "\r\n";
                 }
 
                 foreach ($files as $key => $filePath) {
@@ -237,18 +250,34 @@ trait MakesHttpRequests
                     if (!$realPath) {
                         throw new \RuntimeException("File not found: $filePath");
                     }
-                    $form->addFile($key, $realPath, 'application/octet-stream');
+
+                    $fileContent = @file_get_contents($realPath);
+                    if ($fileContent === false) {
+                        throw new \RuntimeException("Cannot read file: $realPath");
+                    }
+
+                    $filename = basename($realPath);
+                    $safeKey = str_replace(['"', "\r", "\n"], ['', '', ''], (string) $key);
+                    $safeFilename = str_replace(['"', "\r", "\n"], ['', '', ''], $filename);
+
+                    $body .= "--{$boundary}\r\n";
+                    $body .= "Content-Disposition: form-data; name=\"{$safeKey}\"; filename=\"{$safeFilename}\"\r\n";
+                    $body .= "Content-Type: application/octet-stream\r\n\r\n";
+                    $body .= $fileContent . "\r\n";
                 }
 
+                $body .= "--{$boundary}--\r\n";
+
                 $request = new Request($url, 'POST');
-                $request->setBody($form);
+                $request->setHeader('Content-Type', "multipart/form-data; boundary={$boundary}");
+                $request->setBody($body);
                 $this->applyTimeouts($request, $method, $fields);
 
                 $response = $this->httpClient->request($request);
                 $status = $response->getStatus();
-                $body = $response->getBody()->buffer();
+                $responseBody = $response->getBody()->buffer();
 
-                return $this->handleResponse($status, (string) $body);
+                return $this->handleResponse($status, (string) $responseBody);
             } catch (\Throwable $e) {
                 throw $this->translateTransportError($e);
             }
