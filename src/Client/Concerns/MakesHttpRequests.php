@@ -13,6 +13,7 @@ namespace Neili\Client\Concerns;
 
 use Amp\Http\Client\Request;
 use Amp\Future;
+use Neili\Client\Multipart\MultipartBody;
 use Neili\Exceptions\NeiliException;
 use Neili\Exceptions\PermanentException;
 use Neili\Exceptions\RateLimitException;
@@ -130,7 +131,7 @@ trait MakesHttpRequests
      * When the body is not valid JSON, the first 500 characters of the
      * raw body are included in the exception message so that it is
      * possible to distinguish a real Telegram 400 (JSON with
-     * "description") from a proxy / upstream failure (HTML).
+     * "description") from an upstream failure (HTML).
      *
      * @throws TransientException on transient failures
      * @throws RateLimitException on HTTP 429
@@ -211,22 +212,16 @@ trait MakesHttpRequests
     /**
      * Send a request with file upload support.
      *
-     * The multipart body is constructed as a single pre-sized string
-     * instead of using Amp\Http\Client\Form. With Form, the underlying
-     * HTTP client sends the body with Transfer-Encoding: chunked
-     * because the form's length cannot be known ahead of time (file
-     * handles are streams). Telegram's own nginx rejects chunked
-     * multipart uploads with 400 Bad Request, so a real-world
-     * sendDocument of a ~160KB HTML file fails even though the exact
-     * same request sent with curl (which always sends a Content-Length)
-     * succeeds.
+     * The multipart body is built manually (see MultipartBody) so the
+     * HTTP client can advertise an exact Content-Length. Telegram's
+     * own nginx rejects chunked multipart bodies with 400 Bad Request,
+     * which is why Amp's built-in Form does not work here.
      *
-     * Building the body as a plain string lets Amp\Http\Client set a
-     * correct Content-Length automatically (the string is buffered),
-     * which is what Telegram expects. Every uploaded file uses the
-     * neutral "application/octet-stream" content type; Telegram
-     * identifies documents by file name and content, not by MIME, so
-     * the user still receives the same file with the same name.
+     * Files are streamed from disk with Amp\File, so this method is
+     * fully non-blocking: the request body is produced lazily, one
+     * ~8 KiB chunk at a time, as the HTTP client writes bytes to the
+     * socket. No part of the file is loaded into PHP memory all at
+     * once.
      */
     private function requestWithFile(string $method, array $fields, array $files = []): Future
     {
@@ -235,14 +230,21 @@ trait MakesHttpRequests
         return async(function () use ($url, $method, $fields, $files) {
             try {
                 $boundary = '----NeiliBoundary' . bin2hex(random_bytes(16));
-
-                $body = '';
+                $parts = [];
 
                 foreach ($fields as $key => $value) {
-                    $safeKey = str_replace(['"', "\r", "\n"], ['', '', ''], (string) $key);
-                    $body .= "--{$boundary}\r\n";
-                    $body .= "Content-Disposition: form-data; name=\"{$safeKey}\"\r\n\r\n";
-                    $body .= (string) $value . "\r\n";
+                    $safeKey = str_replace(['"', "\r", "\n"], '', (string) $key);
+                    $value = (string) $value;
+
+                    $header = "--{$boundary}\r\n"
+                            . "Content-Disposition: form-data; name=\"{$safeKey}\"\r\n"
+                            . "\r\n";
+
+                    $parts[] = [
+                        'header' => $header,
+                        'value'  => $value,
+                        'footer' => "\r\n",
+                    ];
                 }
 
                 foreach ($files as $key => $filePath) {
@@ -251,25 +253,33 @@ trait MakesHttpRequests
                         throw new \RuntimeException("File not found: $filePath");
                     }
 
-                    $fileContent = @file_get_contents($realPath);
-                    if ($fileContent === false) {
-                        throw new \RuntimeException("Cannot read file: $realPath");
+                    $size = @filesize($realPath);
+                    if ($size === false) {
+                        throw new \RuntimeException("Cannot stat file: $realPath");
                     }
 
                     $filename = basename($realPath);
-                    $safeKey = str_replace(['"', "\r", "\n"], ['', '', ''], (string) $key);
-                    $safeFilename = str_replace(['"', "\r", "\n"], ['', '', ''], $filename);
+                    $safeKey = str_replace(['"', "\r", "\n"], '', (string) $key);
+                    $safeFilename = str_replace(['"', "\r", "\n"], '', $filename);
 
-                    $body .= "--{$boundary}\r\n";
-                    $body .= "Content-Disposition: form-data; name=\"{$safeKey}\"; filename=\"{$safeFilename}\"\r\n";
-                    $body .= "Content-Type: application/octet-stream\r\n\r\n";
-                    $body .= $fileContent . "\r\n";
+                    $header = "--{$boundary}\r\n"
+                            . "Content-Disposition: form-data; name=\"{$safeKey}\"; filename=\"{$safeFilename}\"\r\n"
+                            . "Content-Type: application/octet-stream\r\n"
+                            . "\r\n";
+
+                    $parts[] = [
+                        'header' => $header,
+                        'path'   => $realPath,
+                        'size'   => $size,
+                        'footer' => "\r\n",
+                    ];
                 }
 
-                $body .= "--{$boundary}--\r\n";
+                $closing = "--{$boundary}--\r\n";
+
+                $body = new MultipartBody($boundary, $parts, $closing);
 
                 $request = new Request($url, 'POST');
-                $request->setHeader('Content-Type', "multipart/form-data; boundary={$boundary}");
                 $request->setBody($body);
                 $this->applyTimeouts($request, $method, $fields);
 
