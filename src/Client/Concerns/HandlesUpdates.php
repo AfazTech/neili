@@ -27,9 +27,8 @@ trait HandlesUpdates
 
         if (!$isCli) {
             // Webhook mode
-            $headers = getallheaders();
             if ($secretToken !== null) {
-                $headerToken = $headers['X-Telegram-Bot-Api-Secret-Token'] ?? null;
+                $headerToken = $this->readSecretTokenHeader();
                 if ($headerToken !== $secretToken) {
                     throw new \RuntimeException('Invalid secret token');
                 }
@@ -41,12 +40,22 @@ trait HandlesUpdates
                 throw new \RuntimeException('Invalid JSON: ' . json_last_error_msg());
             }
 
-            // Multi-process support: fork a new PHP process for the update
+            // Multi-process support: fork a new PHP process for the update.
+            // Both the PHP binary and the script path are escaped because
+            // either can contain shell metacharacters (paths with spaces,
+            // for instance), and shell injection would be catastrophic.
             if ($this->settings->isMultiProcess()) {
                 $payload = base64_encode(json_encode($update));
-                $executedFile = $_SERVER['SCRIPT_FILENAME'];
+                $executedFile = (string) ($_SERVER['SCRIPT_FILENAME'] ?? '');
                 $phpBinary = $this->settings->getPhpBinary();
-                exec("{$phpBinary} {$executedFile} '$payload' > /dev/null 2>&1 &");
+
+                $command = sprintf(
+                    '%s %s %s > /dev/null 2>&1 &',
+                    escapeshellarg($phpBinary),
+                    escapeshellarg($executedFile),
+                    escapeshellarg($payload),
+                );
+                exec($command);
                 http_response_code(200);
                 exit;
             }
@@ -69,6 +78,34 @@ trait HandlesUpdates
             throw new \RuntimeException('Invalid JSON in CLI payload: ' . json_last_error_msg());
         }
         return $update;
+    }
+
+    /**
+     * Read the X-Telegram-Bot-Api-Secret-Token header.
+     *
+     * Prefers the normalised $_SERVER entry (always present in web SAPIs),
+     * then falls back to getallheaders() with a case-insensitive lookup,
+     * because different servers normalise header casing differently.
+     */
+    private function readSecretTokenHeader(): ?string
+    {
+        $fromServer = $_SERVER['HTTP_X_TELEGRAM_BOT_API_SECRET_TOKEN'] ?? null;
+        if (is_string($fromServer) && $fromServer !== '') {
+            return $fromServer;
+        }
+
+        if (function_exists('getallheaders')) {
+            $headers = getallheaders();
+            if (is_array($headers)) {
+                foreach ($headers as $name => $value) {
+                    if (strcasecmp((string) $name, 'X-Telegram-Bot-Api-Secret-Token') === 0) {
+                        return is_string($value) ? $value : null;
+                    }
+                }
+            }
+        }
+
+        return null;
     }
 
     /**
