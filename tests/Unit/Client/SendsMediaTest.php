@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Neili\Tests\Unit\Client;
 
-use Amp\Http\Client\Form;
 use Neili\Client;
+use Neili\Client\Multipart\MultipartBody;
 use Neili\Media;
 use Neili\Settings;
 use Neili\Tests\Support\FakeHttpClient;
@@ -48,7 +48,15 @@ final class SendsMediaTest extends TestCase
             $client->sendPhoto(1, new Media($file), 'Caption')->await();
 
             $request = $http->getLastRequest();
-            self::assertInstanceOf(Form::class, $request->getBody());
+            self::assertNotNull($request);
+            self::assertInstanceOf(MultipartBody::class, $request->getBody());
+
+            $body = $http->getLastRequestBody();
+            self::assertNotNull($body);
+            self::assertStringContainsString('name="chat_id"', $body);
+            self::assertStringContainsString('name="caption"', $body);
+            self::assertStringContainsString('name="photo"; filename=', $body);
+            self::assertStringContainsString('fake-jpeg-data', $body);
         } finally {
             @unlink($file);
         }
