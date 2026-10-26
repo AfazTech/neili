@@ -43,6 +43,16 @@ class Settings
     private bool $useMultiProcess = false;
 
     /**
+     * Flag to enable fast-ack webhook mode.
+     *
+     * In fast-ack mode the webhook endpoint replies 200 OK to Telegram
+     * immediately, detaches the response, and continues processing the
+     * update in the same PHP request lifecycle. Mutually exclusive with
+     * multi-process mode.
+     */
+    private bool $fastAck = false;
+
+    /**
      * Path to PHP binary for multi-process execution
      */
     private string $phpBinary = '/usr/bin/php';
@@ -168,10 +178,18 @@ class Settings
     public function getConnectionTimeout(): int { return $this->connectionTimeout; }
 
     /**
-     * Enable or disable multi-process
-     * @throws \RuntimeException if exec is disabled
+     * Enable or disable multi-process.
+     *
+     * Mutually exclusive with fast-ack mode.
+     *
+     * @throws \RuntimeException if exec is disabled or fast-ack is enabled
      */
     public function setMultiProcess(bool $state): self {
+        if ($state && $this->fastAck) {
+            throw new \RuntimeException(
+                'Cannot enable multi-process while fast-ack is enabled. Disable fast-ack first.'
+            );
+        }
         if ($state && !function_exists('exec')) throw new \RuntimeException("Cannot enable multi-process: exec disabled");
         $this->useMultiProcess = $state;
         return $this;
@@ -181,6 +199,31 @@ class Settings
      * Check if multi-process is enabled
      */
     public function isMultiProcess(): bool { return $this->useMultiProcess; }
+
+    /**
+     * Enable or disable fast-ack webhook mode.
+     *
+     * In fast-ack mode the webhook endpoint replies 200 OK to Telegram
+     * immediately, detaches the response, and continues processing the
+     * update in the same PHP request lifecycle. Mutually exclusive with
+     * multi-process mode.
+     *
+     * @throws \RuntimeException if multi-process mode is already enabled
+     */
+    public function setFastAck(bool $state): self {
+        if ($state && $this->useMultiProcess) {
+            throw new \RuntimeException(
+                'Cannot enable fast-ack while multi-process is enabled. Disable multi-process first.'
+            );
+        }
+        $this->fastAck = $state;
+        return $this;
+    }
+
+    /**
+     * Check if fast-ack webhook mode is enabled
+     */
+    public function isFastAck(): bool { return $this->fastAck; }
 
     /**
      * Set PHP binary path for multi-process execution

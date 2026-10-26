@@ -17,7 +17,15 @@ trait HandlesUpdates
 {
     /**
      * Handle incoming update.
-     * Supports both CLI (for multi-process) and webhook mode.
+     *
+     * Supports three delivery modes:
+     *   - CLI mode: used by the multi-process worker (payload in $argv[1]).
+     *   - Multi-process webhook mode: forks a PHP CLI worker per update.
+     *   - Fast-ack webhook mode: replies 200 OK to Telegram immediately and
+     *     continues processing the update in the current PHP request.
+     *
+     * Multi-process and fast-ack modes are mutually exclusive; Settings
+     * enforces that invariant at configuration time.
      */
     public function handleUpdate(?string $secretToken = null): array
     {
@@ -50,6 +58,12 @@ trait HandlesUpdates
                 exit;
             }
 
+            // Fast-ack support: acknowledge Telegram right away, then let
+            // the caller process the update in this request lifecycle.
+            if ($this->settings->isFastAck()) {
+                $this->acknowledgeWebhook();
+            }
+
             return $update;
         }
 
@@ -62,6 +76,52 @@ trait HandlesUpdates
             throw new \RuntimeException('Invalid JSON in CLI payload: ' . json_last_error_msg());
         }
         return $update;
+    }
+
+    /**
+     * Send an immediate 200 OK to the webhook caller and detach the response,
+     * so the current PHP request keeps running in the background without
+     * blocking Telegram.
+     *
+     * Prefers fastcgi_finish_request(); falls back to
+     * litespeed_finish_request(), frankenphp_finish_request(), and finally
+     * a best-effort output buffer flush + flush().
+     */
+    private function acknowledgeWebhook(): void
+    {
+        if (function_exists('ignore_user_abort')) {
+            ignore_user_abort(true);
+        }
+        if (function_exists('set_time_limit')) {
+            set_time_limit(0);
+        }
+        if (function_exists('ini_set')) {
+            @ini_set('max_execution_time', '0');
+        }
+
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            session_write_close();
+        }
+
+        if (!headers_sent()) {
+            http_response_code(200);
+        }
+        echo 'OK';
+
+        if (function_exists('fastcgi_finish_request')) {
+            fastcgi_finish_request();
+        } elseif (function_exists('litespeed_finish_request')) {
+            litespeed_finish_request();
+        } elseif (function_exists('frankenphp_finish_request')) {
+            frankenphp_finish_request();
+        } else {
+            while (ob_get_level() > 0) {
+                if (!ob_end_flush()) {
+                    break;
+                }
+            }
+            flush();
+        }
     }
 
     /**
