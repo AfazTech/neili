@@ -109,6 +109,10 @@ trait SendsMedia
 
     /**
      * Send paid media.
+     *
+     * Each item may be a Media object, or an InputPaidMedia array. Media
+     * objects nested inside the array (under the "media" field) are also
+     * extracted and uploaded, in addition to top-level Media objects.
      */
     public function sendPaidMedia(
         int|string $chatId,
@@ -165,11 +169,12 @@ trait SendsMedia
                 ];
                 $attachments[$attachKey] = $item->filePath;
             } elseif (is_array($item)) {
+                $item = $this->extractMediaAttachments($item, $attachments);
                 $normalized[] = $item;
             } else {
                 throw new InvalidArgumentException(
                     "Unsupported paid media item at position {$index}. " .
-                    "Expected Media object, InputPaidMedia array, or string."
+                    "Expected Media object or InputPaidMedia array."
                 );
             }
         }
@@ -517,12 +522,11 @@ trait SendsMedia
     ): Future {
         $inputMedia = [];
         $attachments = [];
-        $hasLocalFile = false;
 
         foreach ($mediaItems as $index => $item) {
             if ($item instanceof Media) {
                 $attachKey = "file_{$index}_" . bin2hex(random_bytes(4));
-                $type = $this->detectMediaType($item->filePath);
+                $type = $this->detectMediaGroupType($item->filePath);
 
                 $mediaEntry = [
                     'type' => $type,
@@ -535,7 +539,6 @@ trait SendsMedia
 
                 $inputMedia[] = $mediaEntry;
                 $attachments[$attachKey] = $item->filePath;
-                $hasLocalFile = true;
             } elseif (is_string($item)) {
                 $type = $this->guessTypeFromString($item);
 
@@ -550,6 +553,7 @@ trait SendsMedia
 
                 $inputMedia[] = $mediaEntry;
             } elseif (is_array($item) && isset($item['type'], $item['media'])) {
+                $item = $this->extractMediaAttachments($item, $attachments);
                 $inputMedia[] = $item;
             } else {
                 throw new InvalidArgumentException(
@@ -600,18 +604,25 @@ trait SendsMedia
             $payload += $extraParams;
         }
 
-        return $hasLocalFile
+        return $attachments
             ? $this->requestWithFile('sendMediaGroup', $payload, $attachments)
             : $this->request('sendMediaGroup', $payload);
     }
 
-    private function detectMediaType(string $path): string
+    /**
+     * Detect the InputMedia type for a media group item.
+     *
+     * Only InputMediaPhoto, InputMediaVideo, InputMediaAudio, and
+     * InputMediaDocument are accepted by sendMediaGroup, so a GIF is
+     * mapped to "document" rather than "animation" (which would be
+     * rejected by Telegram).
+     */
+    private function detectMediaGroupType(string $path): string
     {
         $ext = strtolower(pathinfo($path, PATHINFO_EXTENSION));
 
         return match ($ext) {
             'jpg', 'jpeg', 'png', 'webp', 'heic', 'bmp' => 'photo',
-            'gif' => 'animation',
             'mp4', 'mov', 'mkv', 'webm', 'avi' => 'video',
             'mp3', 'm4a', 'ogg', 'wav', 'flac' => 'audio',
             default => 'document',
@@ -631,11 +642,11 @@ trait SendsMedia
     private function guessTypeFromString(string $value): string
     {
         if (str_starts_with($value, 'http') || str_starts_with($value, 'https')) {
-            $ext = strtolower(pathinfo(parse_url($value, PHP_URL_PATH), PATHINFO_EXTENSION));
+            $path = parse_url($value, PHP_URL_PATH);
+            $ext = is_string($path) ? strtolower(pathinfo($path, PATHINFO_EXTENSION)) : '';
 
             return match ($ext) {
                 'jpg', 'jpeg', 'png', 'webp' => 'photo',
-                'gif' => 'animation',
                 'mp4', 'mov', 'webm' => 'video',
                 default => 'document',
             };
