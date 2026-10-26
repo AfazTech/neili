@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "35554113bb5eada0eb84c96d79776799",
+    "content-hash": "ee53a668548b8a26cafe48da4d3e5f5e",
     "packages": [
         {
             "name": "amphp/amp",
@@ -318,16 +318,16 @@
         },
         {
             "name": "amphp/file",
-            "version": "v3.2.0",
+            "version": "v4.0.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/amphp/file.git",
-                "reference": "28b38a805d2c235bb581d24415e78a42cd03aedc"
+                "reference": "6e122dd70a183750175b68810c24df1b6b95e0a4"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/amphp/file/zipball/28b38a805d2c235bb581d24415e78a42cd03aedc",
-                "reference": "28b38a805d2c235bb581d24415e78a42cd03aedc",
+                "url": "https://api.github.com/repos/amphp/file/zipball/6e122dd70a183750175b68810c24df1b6b95e0a4",
+                "reference": "6e122dd70a183750175b68810c24df1b6b95e0a4",
                 "shasum": ""
             },
             "require": {
@@ -343,7 +343,7 @@
                 "amphp/php-cs-fixer-config": "^2",
                 "amphp/phpunit-util": "^3",
                 "phpunit/phpunit": "^9",
-                "psalm/phar": "5.22.2"
+                "psalm/phar": "6.16.1"
             },
             "suggest": {
                 "ext-eio": "^2 || ^3",
@@ -352,7 +352,8 @@
             "type": "library",
             "autoload": {
                 "files": [
-                    "src/functions.php"
+                    "src/functions.php",
+                    "src/Internal/functions.php"
                 ],
                 "psr-4": {
                     "Amp\\File\\": "src"
@@ -391,7 +392,7 @@
             ],
             "support": {
                 "issues": "https://github.com/amphp/file/issues",
-                "source": "https://github.com/amphp/file/tree/v3.2.0"
+                "source": "https://github.com/amphp/file/tree/v4.0.0"
             },
             "funding": [
                 {
@@ -399,7 +400,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2024-12-06T23:39:02+00:00"
+            "time": "2026-05-09T15:40:03+00:00"
         },
         {
             "name": "amphp/hpack",
