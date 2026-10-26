@@ -21,12 +21,24 @@ trait ManagesFiles
 
     /**
      * Get the public download URL of a file given its remote file_path.
+     *
+     * Derives the file endpoint from the configured API URL instead of
+     * hardcoding api.telegram.org, so that self-hosted Bot API servers
+     * (where the base URL points to a local host) also work.
      */
     public function getFileUrl(string $filePath): string
     {
-        return "https://api.telegram.org/file/bot"
+        $apiUrl = rtrim($this->settings->getApiUrl(), '/');
+
+        if (str_ends_with($apiUrl, '/bot')) {
+            $fileBase = substr($apiUrl, 0, -4) . '/file/bot';
+        } else {
+            $fileBase = $apiUrl;
+        }
+
+        return $fileBase
             . $this->settings->getAccessToken()
-            . "/" . ltrim($filePath, '/');
+            . '/' . ltrim($filePath, '/');
     }
 
     /**
