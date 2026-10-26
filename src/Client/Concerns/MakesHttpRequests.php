@@ -243,12 +243,12 @@ trait MakesHttpRequests
                 foreach ($files as $key => $filePath) {
                     $realPath = realpath($filePath);
                     if (!$realPath) {
-                        throw new \RuntimeException("File not found: $filePath");
+                        throw new PermanentException("File not found: $filePath");
                     }
 
                     $size = @filesize($realPath);
                     if ($size === false) {
-                        throw new \RuntimeException("Cannot stat file: $realPath");
+                        throw new PermanentException("Cannot stat file: $realPath");
                     }
 
                     $filename = basename($realPath);
