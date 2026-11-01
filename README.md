@@ -12,7 +12,7 @@ This repository includes the library source, configuration classes, tests, and p
 
 - Non-blocking HTTP requests powered by Amp
 - Telegram Bot API method wrappers and dynamic API calls
-- Long polling with concurrency limits and exponential backoff
+- Long polling with a configurable default limit of 100 in-flight updates and exponential backoff
 - Standard, multi-process, and fast-ack webhook modes
 - `flush()` to wait for pending requests without awaiting each call
 - Fluent reply and inline keyboard builder

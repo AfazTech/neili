@@ -21,7 +21,10 @@ class Poller
     private int $offset = 0; // last processed update ID
     private bool $running = false; // poller active state
     private ?Future $mainFuture = null; // main async loop future
-    private string $lockFile = 'neili.lock'; // optional lock file for single instance
+    /** @var array<int, Future> Update handlers currently in flight. */
+    private array $activeHandlers = [];
+    private int $nextHandlerId = 0;
+    private bool $draining = false;
     private ?LocalSemaphore $semaphore = null; // concurrency control semaphore
 
     /**
@@ -144,7 +147,7 @@ class Poller
     // Start polling loop with optional discarding of old updates
     public function start(bool $discardOldUpdates = true): void
     {
-        if ($this->running) throw new \RuntimeException('Poller already running');
+        if ($this->running || $this->draining) throw new \RuntimeException('Poller already running');
 
         // Ensure background execution and unlimited script runtime
         if (function_exists('ignore_user_abort')) ignore_user_abort(true);
@@ -213,6 +216,14 @@ class Poller
 
             while ($this->running) {
                 try {
+                    // Apply backpressure before fetching another batch, not inside
+                    // newly spawned fibers. At most one Telegram batch is buffered.
+                    $capacity = $this->semaphore?->acquire();
+                    $capacity?->release();
+                    if (!$this->running) {
+                        break;
+                    }
+
                     // Always request the full configured set of update types.
                     // Telegram's own default excludes chat_member,
                     // message_reaction, and message_reaction_count, which
@@ -235,27 +246,30 @@ class Poller
 
                     foreach ($updates as $update) {
                         if (!is_array($update)) continue;
-                        $this->offset = (int) ($update['update_id'] ?? $this->offset) + 1;
 
-                        async(function () use ($update) {
-                            $lock = $this->semaphore?->acquire();
+                        // Acquire in the producer: do not create unbounded fibers
+                        // waiting on the semaphore.
+                        $lock = $this->semaphore?->acquire();
+                        if (!$this->running) {
+                            $lock?->release();
+                            break;
+                        }
+
+                        $this->offset = (int) ($update['update_id'] ?? $this->offset) + 1;
+                        $id = $this->nextHandlerId++;
+                        $this->activeHandlers[$id] = async(function () use ($update, $lock, $id) {
                             try {
                                 $type = $this->detectType($update);
                                 foreach ($this->handlers[$type] ?? [] as $handler) {
-                                    try {
-                                        $handler($update);
-                                    } catch (\Throwable $e) {
-                                        $this->reportError($e, $update, $type);
-                                    }
+                                    $this->invokeHandler($handler, $update, $type);
                                 }
                                 if ($this->updateHandler !== null) {
-                                    try {
-                                        ($this->updateHandler)($update);
-                                    } catch (\Throwable $e) {
-                                        $this->reportError($e, $update, 'onUpdate');
-                                    }
+                                    $this->invokeHandler($this->updateHandler, $update, 'onUpdate');
                                 }
-                            } finally { $lock?->release(); }
+                            } finally {
+                                unset($this->activeHandlers[$id]);
+                                $lock?->release();
+                            }
                         });
                     }
                 } catch (RateLimitException $e) {
@@ -301,7 +315,29 @@ class Poller
             }
         });
 
-        $this->mainFuture->await();
+        try {
+            $this->mainFuture->await();
+        } finally {
+            $this->running = false;
+            $this->draining = true;
+            try {
+                \Amp\Future\awaitAll($this->activeHandlers);
+            } finally {
+                $this->draining = false;
+            }
+        }
+    }
+
+    private function invokeHandler(callable $handler, array $update, string $type): void
+    {
+        try {
+            $result = $handler($update);
+            if ($result instanceof Future) {
+                $result->await();
+            }
+        } catch (\Throwable $error) {
+            $this->reportError($error, $update, $type);
+        }
     }
 
     // Stop the poller loop

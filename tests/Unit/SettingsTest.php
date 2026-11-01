@@ -22,7 +22,7 @@ final class SettingsTest extends TestCase
         self::assertSame(3, $settings->getPollerTimeout());
         self::assertSame(1, $settings->getPollerBackoffBase());
         self::assertSame(32, $settings->getPollerMaxBackoff());
-        self::assertNull($settings->getPollerMaxConcurrency());
+        self::assertSame(100, $settings->getPollerMaxConcurrency());
         self::assertNull($settings->getHttpClient());
     }
 
@@ -49,6 +49,23 @@ final class SettingsTest extends TestCase
         self::assertSame(60, $settings->getPollerMaxBackoff());
         self::assertSame(50, $settings->getPollerMaxConcurrency());
         self::assertSame('/usr/local/bin/php', $settings->getPhpBinary());
+    }
+
+    public function testConcurrencyCanBeExplicitlyUnlimited(): void
+    {
+        self::assertNull((new Settings())->setPollerMaxConcurrency(null)->getPollerMaxConcurrency());
+    }
+
+    public function testConcurrencyRejectsZero(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        (new Settings())->setPollerMaxConcurrency(0);
+    }
+
+    public function testConcurrencyRejectsNegativeValues(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        (new Settings())->setPollerMaxConcurrency(-1);
     }
 
     public function testSetTimeoutKeepsConnectionTimeoutWhenOmitted(): void

@@ -129,7 +129,7 @@ $client = new \Neili\Client($settings);
 | `setPollerTimeout(int)` | `getPollerTimeout()` | `int` | `3` | Telegram long-poll timeout in seconds |
 | `setPollerBackoffBase(int)` | `getPollerBackoffBase()` | `int` | `1` | Exponential backoff base (sec) |
 | `setPollerMaxBackoff(int)` | `getPollerMaxBackoff()` | `int` | `32` | Maximum backoff delay (sec) |
-| `setPollerMaxConcurrency(?int)` | `getPollerMaxConcurrency()` | `?int` | `null` | Max concurrent async update handlers (`null` = unlimited) |
+| `setPollerMaxConcurrency(?int)` | `getPollerMaxConcurrency()` | `?int` | `100` | Max in-flight update handlers; positive integer or explicit `null` for unlimited |
 | `setPollerAllowedUpdates(array)` | `getPollerAllowedUpdates()` | `array` | Full list of supported types | Update types requested from Telegram by the poller |
 | `setHttpClient(object)` | `getHttpClient()` | `?object` | `null` | Inject a pre-built HTTP client |
 
@@ -204,7 +204,7 @@ $client->editMessageText(
 )->await();
 ```
 
-Use `await()` for dependent operations and to catch a specific request's error. Inside a poller handler, awaiting requests also lets handler exceptions reach `onError()` and keeps those requests within the handler's concurrency limit. Returning a Future from a handler does not make the Poller await it automatically.
+Use `await()` for dependent operations and to catch a specific request's error. Inside a poller handler, awaiting requests also lets handler exceptions reach `onError()` and keeps those requests within the handler's concurrency limit. If a handler returns an `Amp\Future`, the Poller awaits it and routes its failure to `onError()`. Requests neither awaited nor returned are detached from the handler.
 
 ### Waiting for Pending Operations
 
@@ -377,7 +377,7 @@ $poller = new Poller($client);
 | Method | Signature | Description |
 | --- | --- | --- |
 | `start` | `start(bool $discardOldUpdates = true): void` | Blocks; runs the loop. When `$discardOldUpdates` is true, a short-poll (`timeout=0`) fetch is issued first |
-| `stop` | `stop(): void` | Signals the loop to exit after the current iteration |
+| `stop` | `stop(): void` | Stops accepting new updates; `start()` waits for already started handlers before returning |
 | `isRunning` | `isRunning(): bool` | `true` while the loop is active |
 
 ### Poller Global Handlers
@@ -389,9 +389,9 @@ $poller = new Poller($client);
 
 ### Poller Type Handlers
 
-`onMessage`, `onEditedMessage`, `onMessageReaction`, `onMessageReactionCount`, `onChatBoost`, `onRemovedChatBoost`, `onChannelPost`, `onEditedChannelPost`, `onInlineQuery`, `onChosenInlineResult`, `onCallbackQuery`, `onShippingQuery`, `onPreCheckoutQuery`, `onPoll`, `onPollAnswer`, `onMyChatMember`, `onChatMember`, `onChatJoinRequest`, `onBusinessMessage`, `onEditedBusinessMessage`, `onDeletedBusinessMessage`, `onBusinessConnection`, `onGuestMessage`, `onPurchasedPaidMedia`, `onManagedBot`.
+`onMessage`, `onEditedMessage`, `onMessageReaction`, `onMessageReactionCount`, `onChatBoost`, `onRemovedChatBoost`, `onChannelPost`, `onEditedChannelPost`, `onInlineQuery`, `onChosenInlineResult`, `onCallbackQuery`, `onShippingQuery`, `onPreCheckoutQuery`, `onPoll`, `onPollAnswer`, `onMyChatMember`, `onChatMember`, `onChatJoinRequest`, `onBusinessMessage`, `onEditedBusinessMessage`, `onDeletedBusinessMessage`, `onBusinessConnection`, `onGuestMessage`, `onPurchasedPaidMedia`, `onManagedBot`, `onSubscription`, `onStoppedMessageGeneration`.
 
-Each accepts `callable(array $update): void`. Multiple callbacks can be registered for the same type.
+Each accepts a callback receiving `array $update`; it may return `void` or an `Amp\Future`. Multiple callbacks can be registered for the same type.
 
 ### Poller Error Handling
 
@@ -406,8 +406,15 @@ Each accepts `callable(array $update): void`. Multiple callbacks can be register
 
 ### Poller Concurrency
 
-If `setPollerMaxConcurrency(n)` is configured, handler execution is gated by a `LocalSemaphore` of size `n`. Each update runs in its own async fiber. Awaiting non-blocking I/O allows other fibers to progress; blocking PHP calls still block the process. The limit covers handler execution, not requests detached from it by omitting `await()`. Avoid calling `flush()` inside a handler on the shared polling client: it also tracks the poller's own requests and other handlers' requests.
+The default limit is **100 in-flight updates**. Set a positive limit before constructing the Poller; explicit `null` disables the limit. Invalid zero or negative limits throw `InvalidArgumentException`.
 
+Capacity is acquired before creating each update fiber. When all slots are occupied, polling pauses instead of spawning fibers waiting for a slot. At most one fetched Telegram batch remains buffered. A slot covers all callbacks for that update, including any returned Future. Slots are released on success and failure.
+
+`stop()` stops dispatching new updates and `start()` drains active handlers before returning, including when polling fails permanently. A handler that never completes can therefore delay shutdown. Do not await the Poller's own `start()` Future inside a handler.
+
+Awaiting non-blocking I/O allows other fibers to progress; blocking PHP calls still block the process. The limit does not cover requests detached by neither awaiting nor returning their Future. Avoid `flush()` inside a handler on the shared polling client: it also tracks polling requests and other handlers' requests.
+
+The offset advances when an update is dispatched. This is not a durable queue or a guarantee that work survives process crashes.
 ```php
 $settings->setPollerMaxConcurrency(50);
 ```

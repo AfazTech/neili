@@ -69,7 +69,7 @@ class Settings
     /**
      * Maximum concurrent async handlers in poller
      */
-    private ?int $pollerMaxConcurrency = null;
+    private ?int $pollerMaxConcurrency = 100;
 
     /**
      * Update types requested from Telegram by the poller.
@@ -252,7 +252,13 @@ class Settings
     /**
      * Set maximum concurrent handlers for poller
      */
-    public function setPollerMaxConcurrency(?int $n): self { $this->pollerMaxConcurrency = $n; return $this; }
+    public function setPollerMaxConcurrency(?int $n): self {
+        if ($n !== null && $n < 1) {
+            throw new \InvalidArgumentException('Poller max concurrency must be positive or null');
+        }
+        $this->pollerMaxConcurrency = $n;
+        return $this;
+    }
 
     /**
      * Get maximum concurrent handlers
