@@ -7,7 +7,6 @@ namespace Neili\Client\Concerns;
 use Amp\File;
 use Amp\Future;
 use Amp\Http\Client\Request;
-use function Amp\async;
 
 trait ManagesFiles
 {
@@ -57,7 +56,7 @@ trait ManagesFiles
      */
     public function downloadFile(string $fileId, string $destinationPath): Future
     {
-        return async(function () use ($fileId, $destinationPath): string {
+        return $this->asyncOperation(function () use ($fileId, $destinationPath): string {
             $fileInfo = $this->getFile($fileId)->await();
 
             if (!isset($fileInfo['result']['file_path'])) {

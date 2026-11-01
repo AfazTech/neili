@@ -56,6 +56,76 @@ class Client
     use HandlesRichMessages;
     use HandlesPassport;
 
+    /** @var array<int, Future> Operations that have not finished yet. */
+    private array $pendingOperations = [];
+
+    private int $nextOperationId = 0;
+
+    private bool $flushing = false;
+
+    /** @var array<int, Future> Also retains operations created during a flush. */
+    private array $flushQueue = [];
+
+    /**
+     * Schedule an operation without changing the Future's error handling.
+     * Completed operations are released even when flush() is never called.
+     */
+    private function asyncOperation(\Closure $operation): Future
+    {
+        $id = $this->nextOperationId++;
+
+        $future = $this->pendingOperations[$id] = \Amp\async(function () use ($id, $operation) {
+            try {
+                return $operation();
+            } finally {
+                unset($this->pendingOperations[$id]);
+            }
+        });
+
+        if ($this->flushing) {
+            $this->flushQueue[$id] = $future;
+        }
+
+        return $future;
+    }
+
+    /**
+     * Wait for this client's pending operations, including operations created
+     * while waiting. Does not wait for unrelated event-loop work or callbacks
+     * attached by callers. Already completed operations are not replayed.
+     *
+     * @throws \Amp\CompositeException After draining, if pending operations failed.
+     * @throws \LogicException If another flush is already in progress.
+     */
+    public function flush(): void
+    {
+        if ($this->flushing) {
+            throw new \LogicException('A flush is already in progress for this client');
+        }
+
+        $this->flushing = true;
+        $errors = [];
+        $this->flushQueue = $this->pendingOperations;
+
+        try {
+            while ($this->flushQueue !== []) {
+                $batch = $this->flushQueue;
+                $this->flushQueue = [];
+                [$batchErrors] = \Amp\Future\awaitAll($batch);
+                foreach ($batchErrors as $error) {
+                    $errors[spl_object_id($error)] = $error;
+                }
+            }
+        } finally {
+            $this->flushing = false;
+            $this->flushQueue = [];
+        }
+
+        if ($errors !== []) {
+            throw new \Amp\CompositeException(array_values($errors));
+        }
+    }
+
     /**
      * Telegram bot settings (token, API URL, etc)
      */

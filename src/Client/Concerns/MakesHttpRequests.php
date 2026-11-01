@@ -12,7 +12,6 @@ use Neili\Exceptions\PermanentException;
 use Neili\Exceptions\RateLimitException;
 use Neili\Exceptions\TransientException;
 use Neili\Media;
-use function Amp\async;
 
 trait MakesHttpRequests
 {
@@ -184,7 +183,7 @@ trait MakesHttpRequests
     {
         $url = $this->settings->getApiUrl() . $this->settings->getAccessToken() . '/' . $method;
 
-        return async(function () use ($url, $method, $params) {
+        return $this->asyncOperation(function () use ($url, $method, $params) {
             try {
                 $request = new Request($url, 'POST');
                 $request->setHeader('Content-Type', 'application/json');
@@ -220,7 +219,7 @@ trait MakesHttpRequests
     {
         $url = $this->settings->getApiUrl() . $this->settings->getAccessToken() . '/' . $method;
 
-        return async(function () use ($url, $method, $fields, $files) {
+        return $this->asyncOperation(function () use ($url, $method, $fields, $files) {
             try {
                 $boundary = '----NeiliBoundary' . bin2hex(random_bytes(16));
                 $parts = [];
