@@ -663,9 +663,9 @@ $client->__call('sendMessage', [['chat_id' => 123, 'text' => 'Hello']])->await()
 | Exception | Thrown When | Retry? |
 | --- | --- | --- |
 | `NeiliException` | Base class for all Neili errors | — |
-| `TransientException` | HTTP 5xx, invalid JSON, transport errors (DNS, TCP, TLS, timeouts) | ✅ Yes |
-| `RateLimitException` | Telegram returns `error_code: 429` | ✅ After `getRetryAfter()` seconds |
-| `PermanentException` | Any other non-OK Telegram response (`400`, `401`, `403`, `404`, …) | ❌ No |
+| `TransientException` | HTTP 5xx, malformed successful responses, unexpected HTTP statuses, transport errors | ✅ Yes |
+| `RateLimitException` | HTTP 429 or Telegram returns `error_code: 429` | ✅ After `getRetryAfter()` seconds |
+| `PermanentException` | HTTP 4xx except 429, or a non-OK Telegram response (`400`, `401`, `403`, …) | ❌ No |
 
 **Exception accessors:**
 

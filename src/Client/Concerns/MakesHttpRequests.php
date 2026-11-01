@@ -120,10 +120,8 @@ trait MakesHttpRequests
     /**
      * Translate HTTP status + decoded Telegram payload into Neili exceptions.
      *
-     * When the body is not valid JSON, the first 500 characters of the
-     * raw body are included in the exception message so that it is
-     * possible to distinguish a real Telegram 400 (JSON with
-     * "description") from an upstream failure (HTML).
+     * HTTP status takes precedence over a success flag. Successful HTTP
+     * responses must also contain a valid Telegram response envelope.
      *
      * @throws TransientException on transient failures
      * @throws RateLimitException on HTTP 429
@@ -136,31 +134,43 @@ trait MakesHttpRequests
         }
 
         $decoded = json_decode($body, true);
+        $parameters = is_array($decoded['parameters'] ?? null) ? $decoded['parameters'] : [];
+        $description = is_string($decoded['description'] ?? null)
+            ? $decoded['description']
+            : "Telegram API returned HTTP {$status}";
 
-        if (!is_array($decoded)) {
-            $preview = trim(preg_replace('/\s+/', ' ', mb_substr($body, 0, 500)) ?? '');
-            throw new TransientException(
-                "Invalid JSON response from Telegram API (HTTP {$status}). "
-                . "Body preview: {$preview}",
-                $status
-            );
+        // HTTP failures must never be accepted as successful API responses,
+        // including when a proxy supplies HTML or an incomplete JSON object.
+        if ($status === 429) {
+            throw new RateLimitException($description, (int) ($parameters['retry_after'] ?? 1), $parameters);
+        }
+        if ($status >= 400) {
+            throw new PermanentException($description, $status, $parameters);
+        }
+        if ($status < 200 || $status >= 300) {
+            throw new TransientException("Unexpected Telegram API HTTP status {$status}", $status);
         }
 
-        if (array_key_exists('ok', $decoded) && $decoded['ok'] === false) {
-            $code = (int) ($decoded['error_code'] ?? $status);
-            $description = (string) ($decoded['description'] ?? 'Unknown Telegram API error');
-            $parameters = (array) ($decoded['parameters'] ?? []);
+        if (!is_array($decoded) || !is_bool($decoded['ok'] ?? null)) {
+            throw new TransientException("Invalid Telegram API response (HTTP {$status}): expected a boolean ok field", $status);
+        }
 
-            if ($code === 429) {
-                $retryAfter = (int) ($parameters['retry_after'] ?? 1);
-                throw new RateLimitException($description, $retryAfter, $parameters);
+        if ($decoded['ok'] === false) {
+            if (!is_int($decoded['error_code'] ?? null)) {
+                throw new TransientException('Invalid Telegram API error response: missing integer error_code', $status);
             }
-
+            $code = $decoded['error_code'];
+            if ($code === 429) {
+                throw new RateLimitException($description, (int) ($parameters['retry_after'] ?? 1), $parameters);
+            }
             if ($code >= 500) {
                 throw new TransientException($description, $code);
             }
-
             throw new PermanentException($description, $code, $parameters);
+        }
+
+        if (!array_key_exists('result', $decoded)) {
+            throw new TransientException('Invalid Telegram API success response: missing result', $status);
         }
 
         return $decoded;
