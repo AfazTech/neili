@@ -5,6 +5,10 @@ declare(strict_types=1);
 namespace Neili;
 
 use Amp\Http\Client\HttpClientBuilder;
+use Amp\Http\Client\Connection\DefaultConnectionFactory;
+use Amp\Http\Client\Connection\UnlimitedConnectionPool;
+use Amp\Socket\ClientTlsContext;
+use Amp\Socket\ConnectContext;
 use Amp\Future;
 use Neili\Client\Concerns\HandlesBusiness;
 use Neili\Client\Concerns\HandlesEphemeralMessages;
@@ -160,7 +164,7 @@ class Client
     public function __construct(Settings $settings)
     {
         $this->settings = $settings;
-        $this->httpClient = $settings->getHttpClient() ?? HttpClientBuilder::buildDefault();
+        $this->httpClient = $this->buildHttpClient();
     }
 
     /**
@@ -192,7 +196,24 @@ class Client
      */
     public function reconnect(): void
     {
-        $this->httpClient = $this->settings->getHttpClient() ?? HttpClientBuilder::buildDefault();
+        $this->httpClient = $this->buildHttpClient();
+    }
+
+    private function buildHttpClient(): object
+    {
+        // A caller-supplied transport owns its TLS configuration.
+        if (($injected = $this->settings->getHttpClient()) !== null) {
+            return $injected;
+        }
+
+        $tls = new ClientTlsContext();
+        if (!$this->settings->isApiVerifySSL()) {
+            $tls = $tls->withoutPeerVerification();
+        }
+        $context = (new ConnectContext())->withTlsContext($tls);
+        $pool = new UnlimitedConnectionPool(new DefaultConnectionFactory(null, $context));
+
+        return (new HttpClientBuilder())->usingPool($pool)->build();
     }
 
     /**

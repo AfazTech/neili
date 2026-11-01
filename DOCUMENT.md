@@ -121,7 +121,7 @@ $client = new \Neili\Client($settings);
 | --- | --- | --- | --- | --- |
 | `setAccessToken(string)` | `getAccessToken()` | `string` | *(required)* | Telegram bot access token |
 | `setApiUrl(string)` | `getApiUrl()` | `string` | `https://api.telegram.org/bot` | Base API URL (self-hosted Bot API supported) |
-| `setApiVerifySSL(bool)` | `isApiVerifySSL()` | `bool` | `true` | Stored preference; not currently applied by the built-in HTTP client |
+| `setApiVerifySSL(bool)` | `isApiVerifySSL()` | `bool` | `true` | Verify TLS certificates and peer names for the built-in HTTP client; custom clients configure TLS themselves |
 | `setTimeout(int, ?int)` | `getTimeout()` / `getConnectionTimeout()` | `int` | `10` / `5` | Transfer timeout (sec) and connection timeout (sec) |
 | `setMultiProcess(bool)` | `isMultiProcess()` | `bool` | `false` | Fork each webhook update into a PHP CLI worker. Mutually exclusive with `setFastAck(true)`. Throws `RuntimeException` if `exec()` is disabled |
 | `setFastAck(bool)` | `isFastAck()` | `bool` | `false` | Reply `200 OK` to Telegram immediately, then continue processing. Mutually exclusive with `setMultiProcess(true)` |
@@ -146,6 +146,8 @@ $settings = (new Settings())
     ->setAccessToken('YOUR_BOT_TOKEN')
     ->setHttpClient($http);
 ```
+
+The built-in transport applies `setApiVerifySSL()` when the Client is constructed and whenever `reconnect()` rebuilds it. Verification is enabled by default. If you change the setting on an existing Client, call `reconnect()` to apply it. An injected HTTP client owns its TLS configuration; Neili does not override it. The same transport is used for API requests and file downloads.
 
 Runtime swap is also supported:
 
