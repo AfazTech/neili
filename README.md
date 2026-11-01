@@ -2,114 +2,117 @@
 
 [![PHP Version](https://img.shields.io/badge/php-%3E%3D8.1-blue.svg)](https://www.php.net/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Amp](https://img.shields.io/badge/built%20on-Amp-orange.svg)](https://amphp.org/)
+[![Version](https://img.shields.io/github/v/tag/AfazTech/Neili?label=version&color=orange)](https://github.com/AfazTech/Neili/tags)
 
-Async-first PHP library for building Telegram bots on top of [Amp](https://amphp.org/).
+**Neili** is an async-first PHP library for building Telegram bots with Amp. It provides asynchronous API methods, long polling, webhook handling, and helpers for keyboards and media.
+
+This repository includes the library source, configuration classes, tests, and practical examples to help you build bots for short-lived webhook requests or long-running CLI workers.
 
 ## Features
 
-- Non-blocking HTTP client built on `amphp/http-client`
-- Wrappers for the Telegram Bot API methods
-- Long-polling `Poller` with exponential backoff + jitter and concurrency control
-- Webhook handler with three delivery modes:
-  - **Standard webhook** — the script replies to Telegram when it finishes
-  - **Multi-process** — each update is forked into a PHP CLI worker via `exec()`
-  - **Fast-ack** — replies `200 OK` immediately and keeps processing (requires FPM / LiteSpeed / FrankenPHP)
-- Fluent `KeyboardBuilder` for reply and inline keyboards
-- `Media` helper for local file uploads with automatic `attach://` mapping
-- Streaming file downloads via `amphp/file` (safe for large files)
-- Full exception taxonomy: `TransientException`, `PermanentException`, `RateLimitException`
-- Zero internal logging — errors surface through exceptions and `Poller::onError()`
+- Non-blocking HTTP requests powered by Amp
+- Telegram Bot API method wrappers and dynamic API calls
+- Long polling with concurrency limits and exponential backoff
+- Standard, multi-process, and fast-ack webhook modes
+- `flush()` to wait for pending requests without awaiting each call
+- Fluent reply and inline keyboard builder
+- Local media uploads and streaming file downloads
+- Configurable timeouts, API endpoint, and HTTP client
+- Typed API exceptions and poller error callbacks
+- Detailed documentation and usage examples
 
 ## Requirements
 
 - PHP >= 8.1
-- `amphp/amp` ^3
-- `amphp/file` ^3.2
-- `amphp/http-client` ^5.3
-- PHP extensions: `fileinfo`; `posix` (optional, recommended)
-- `exec()` — required only for multi-process webhook mode
+- Composer
+- PHP extensions required by the dependency graph; Composer checks these during installation
+- `exec()` and a PHP CLI binary for multi-process webhook mode
+- PHP-FPM, LiteSpeed, or FrankenPHP for response detachment in fast-ack mode
+
+Composer installs `amphp/file` ^4 and `amphp/http-client` ^5.3, including their Amp dependencies.
 
 ## Installation
+
+Install the library in your application:
 
 ```bash
 composer require afaztech/neili
 ```
 
-## Usage
+To work on the library itself:
 
-### Long polling
+```bash
+git clone https://github.com/AfazTech/Neili.git
+cd Neili
+composer install
+```
+
+## Configuration
+
+Configure the client using `Neili\Settings`. The example below reads the bot token from an environment variable:
 
 ```php
+use Neili\Client;
+use Neili\Settings;
+
+$token = getenv('TELEGRAM_BOT_TOKEN');
+if ($token === false || $token === '') {
+    throw new RuntimeException('Set TELEGRAM_BOT_TOKEN before starting the bot.');
+}
+
+$settings = (new Settings())
+    ->setAccessToken($token)
+    ->setTimeout(15, 5);
+
+$client = new Client($settings);
+```
+
+Environment variables must be provided by your shell or hosting environment. Neili does not load `.env` files automatically.
+
+## Usage
+
+Save this long-polling example as `bot.php`:
+
+```php
+<?php
+
+require __DIR__ . '/vendor/autoload.php';
+
 use Neili\Client;
 use Neili\Poller;
 use Neili\Settings;
 
-$settings = (new Settings())->setAccessToken('YOUR_BOT_TOKEN');
-$client   = new Client($settings);
-$poller   = new Poller($client);
+$token = getenv('TELEGRAM_BOT_TOKEN');
+if ($token === false || $token === '') {
+    throw new RuntimeException('Set TELEGRAM_BOT_TOKEN before starting the bot.');
+}
 
-$poller->onMessage(function (array $update) use ($client) {
-    $chatId = $update['message']['chat']['id'] ?? null;
-    $text   = $update['message']['text'] ?? null;
-    if ($chatId && $text) {
-        $client->sendMessage($chatId, "Echo: {$text}");
+$client = new Client((new Settings())->setAccessToken($token));
+$poller = new Poller($client);
+
+$poller->onError(function (Throwable $error, array $update, string $type): void {
+    error_log("[{$type}] {$error->getMessage()}");
+});
+
+$poller->onMessage(function (array $update) use ($client): void {
+    if (isset($update['message']['chat']['id'], $update['message']['text'])) {
+        $client->sendMessage(
+            $update['message']['chat']['id'],
+            'Echo: ' . $update['message']['text'],
+        )->await();
     }
 });
 
-$poller->start();
+$poller->start(discardOldUpdates: false);
 ```
 
-### Standard webhook
+Start the bot after setting `TELEGRAM_BOT_TOKEN` in your environment:
 
-```php
-use Neili\Client;
-use Neili\Settings;
-
-$settings = (new Settings())->setAccessToken('YOUR_BOT_TOKEN');
-$client   = new Client($settings);
-
-$update = $client->handleUpdate('YOUR_SECRET_TOKEN');
-
-if (isset($update['message']['chat']['id'], $update['message']['text'])) {
-    $client->sendMessage(
-        $update['message']['chat']['id'],
-        'Echo: ' . $update['message']['text']
-    )->await();
-}
+```bash
+php bot.php
 ```
 
-### Multi-process webhook
-
-Each update is forked into a separate PHP CLI worker and the parent returns to Telegram immediately.
-
-```php
-$settings = (new Settings())
-    ->setAccessToken('YOUR_BOT_TOKEN')
-    ->setMultiProcess(true)
-    ->setPhpBinary('/usr/bin/php');
-
-$client = new Client($settings);
-$client->handleUpdate('YOUR_SECRET_TOKEN');
-```
-
-### Fast-ack webhook
-
-Replies `200 OK` to Telegram as soon as possible and keeps processing in the same request. Mutually exclusive with multi-process mode — enabling both throws `RuntimeException`.
-
-```php
-$settings = (new Settings())
-    ->setAccessToken('YOUR_BOT_TOKEN')
-    ->setFastAck(true);
-
-$client = new Client($settings);
-
-$update = $client->handleUpdate('YOUR_SECRET_TOKEN');
-
-// Telegram has already received its 200 OK. Slow work continues below.
-```
-
-Detaches the response only on PHP-FPM, LiteSpeed, or FrankenPHP. On other SAPIs it falls back to flushing the output buffer and behaves like a standard webhook.
+For webhook handlers, schedule independent requests and call `$client->flush()` before the script ends. Use `->await()` when you need a result or dependent ordering. See the [webhook examples](DOCUMENT.md#standard-webhook) and [flush reference](DOCUMENT.md#waiting-for-pending-operations).
 
 ## Documentation
 
@@ -117,7 +120,11 @@ For detailed documentation, see [DOCUMENT.md](DOCUMENT.md).
 
 ## Contributing
 
-Contributions are welcome via pull requests. Please keep the codebase stable, tested, and backward-compatible.
+Contributions are welcome. Open an issue for a bug or proposal, and submit pull requests with focused changes and relevant tests. Run the test suite before submitting:
+
+```bash
+composer test
+```
 
 ## License
 

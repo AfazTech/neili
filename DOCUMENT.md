@@ -11,6 +11,9 @@ Complete reference for the **Neili** async-first Telegram Bot library.
   - [Settings Reference](#settings-reference)
   - [Custom HTTP Client](#custom-http-client)
 - [Quick Start](#quick-start)
+- [Asynchronous Operations](#asynchronous-operations)
+  - [Awaiting Results](#awaiting-results)
+  - [Waiting for Pending Operations](#waiting-for-pending-operations)
 - [Delivery Modes](#delivery-modes)
   - [Long Polling](#long-polling)
   - [Standard Webhook](#standard-webhook)
@@ -74,9 +77,9 @@ Neili wraps the Telegram Bot API with Amp-based asynchronous primitives. It ship
 | --- | --- |
 | PHP | `>= 8.1` |
 | `amphp/amp` | `^3` |
-| `amphp/file` | `^3.2` |
+| `amphp/file` | `^4` |
 | `amphp/http-client` | `^5.3` |
-| PHP extensions | `fileinfo` (required); `posix` (optional, recommended) |
+| Composer | Resolves dependencies and checks required PHP extensions |
 | PHP function `exec()` | Required **only** for multi-process webhook mode |
 
 ---
@@ -87,13 +90,15 @@ Neili wraps the Telegram Bot API with Amp-based asynchronous primitives. It ship
 composer require afaztech/neili
 ```
 
-Autoloading uses PSR-4 (`Neili\` → `src/`).
+Autoloading uses PSR-4 (`Neili\` → `src/`). Load `vendor/autoload.php` once at your application entry point. Composer installs Amp and Revolt transitively through the declared dependencies.
+
+For development, clone the repository, run `composer install`, then run `composer test`.
 
 ---
 
 ## Configuration
 
-All configuration lives in `Neili\Settings`. It has no constructor arguments — just fluent setters and matching getters.
+All configuration lives in `Neili\Settings`. It has no constructor arguments — just fluent setters and matching getters. Set an access token before creating the client. Neili does not automatically read environment variables or load `.env` files; pass values from your application to Settings.
 
 ```php
 use Neili\Settings;
@@ -116,7 +121,7 @@ $client = new \Neili\Client($settings);
 | --- | --- | --- | --- | --- |
 | `setAccessToken(string)` | `getAccessToken()` | `string` | *(required)* | Telegram bot access token |
 | `setApiUrl(string)` | `getApiUrl()` | `string` | `https://api.telegram.org/bot` | Base API URL (self-hosted Bot API supported) |
-| `setApiVerifySSL(bool)` | `isApiVerifySSL()` | `bool` | `true` | Enable TLS verification |
+| `setApiVerifySSL(bool)` | `isApiVerifySSL()` | `bool` | `true` | Stored preference; not currently applied by the built-in HTTP client |
 | `setTimeout(int, ?int)` | `getTimeout()` / `getConnectionTimeout()` | `int` | `10` / `5` | Transfer timeout (sec) and connection timeout (sec) |
 | `setMultiProcess(bool)` | `isMultiProcess()` | `bool` | `false` | Fork each webhook update into a PHP CLI worker. Mutually exclusive with `setFastAck(true)`. Throws `RuntimeException` if `exec()` is disabled |
 | `setFastAck(bool)` | `isFastAck()` | `bool` | `false` | Reply `200 OK` to Telegram immediately, then continue processing. Mutually exclusive with `setMultiProcess(true)` |
@@ -146,7 +151,7 @@ Runtime swap is also supported:
 
 ```php
 $client->setHttpClient($newHttpClient);
-$client->reconnect(); // rebuilds the default client from Settings
+$client->reconnect(); // reuses Settings' injected client, or builds a new default client
 ```
 
 ---
@@ -173,18 +178,63 @@ $poller->onMessage(function (array $update) use ($client) {
     $chatId = $update['message']['chat']['id'] ?? null;
     $text   = $update['message']['text'] ?? null;
     if ($chatId && $text) {
-        $client->sendMessage($chatId, "Echo: {$text}");
+        $client->sendMessage($chatId, "Echo: {$text}")->await();
     }
 });
 
-$poller->start();
+$poller->start(discardOldUpdates: false);
 ```
+
+---
+
+## Asynchronous Operations
+
+### Awaiting Results
+
+Telegram API methods return `Amp\Future`. Creating a Future schedules work; it does not ensure that a short-lived PHP script will stay alive until the work finishes. `await()` drives the event loop as needed and returns the decoded Telegram response, including `ok` and `result`:
+
+```php
+$response = $client->sendMessage($chatId, 'Hello')->await();
+$messageId = $response['result']['message_id'];
+
+$client->editMessageText(
+    text: 'Updated',
+    chatId: $chatId,
+    messageId: $messageId,
+)->await();
+```
+
+Use `await()` for dependent operations and to catch a specific request's error. Inside a poller handler, awaiting requests also lets handler exceptions reach `onError()` and keeps those requests within the handler's concurrency limit. Returning a Future from a handler does not make the Poller await it automatically.
+
+### Waiting for Pending Operations
+
+Call `$client->flush()` at the end of a webhook script to wait for this client's pending API requests, uploads, and downloads without awaiting each call separately. Independent operations can run concurrently; completion order is not guaranteed. This also works in fast-ack and CLI worker modes.
+
+```php
+$client->sendMessage($chatId, 'First');
+$client->sendMessage($chatId, 'Second');
+
+try {
+    $client->flush();
+} catch (\Amp\CompositeException $error) {
+    foreach ($error->getReasons() as $reason) {
+        error_log($reason->getMessage());
+    }
+}
+```
+
+`flush(): void` drains all pending operations before throwing `Amp\CompositeException`, even if only one fails. Operations created on the same client while flushing are included. An empty or repeated flush is safe; concurrent or nested flush calls on the same client throw `LogicException`.
+
+Completed operations are released automatically. A previously awaited and handled failure is not reported again. Errors from operations that completed before flushing retain normal Amp Future error handling; `flush()` is not a history of past failures. It does not wait for unrelated event-loop tasks or caller-created Future chains. Await those chains explicitly, and do not call `flush()` from inside an operation it is waiting for.
+
+
+Fast-ack and multi-process modes do not automatically drain Futures. Call `flush()` in the processing script or await the operations explicitly. `flush()` does not retry failed operations and does not return their results.
 
 ---
 
 ## Delivery Modes
 
-Neili offers four delivery modes. Choose one per deployment.
+Neili offers four delivery modes. Choose one per deployment. The snippets below assume Composer autoloading has already been loaded. Save webhook code in your HTTP endpoint; do not start the Poller in that endpoint.
 
 | Mode | Setup | Mechanism | Requirements |
 | --- | --- | --- | --- |
@@ -204,8 +254,9 @@ $client = new Client((new Settings())->setAccessToken('YOUR_BOT_TOKEN'));
 $poller = new Poller($client);
 
 $poller->onMessage(function (array $update) use ($client) {
-    $update['message']['text'] ?? null
-        and $client->sendMessage($update['message']['chat']['id'], 'Echo: ' . $update['message']['text']);
+    if (isset($update['message']['chat']['id'], $update['message']['text'])) {
+        $client->sendMessage($update['message']['chat']['id'], 'Echo: ' . $update['message']['text'])->await();
+    }
 });
 
 $poller->start(); // blocks
@@ -225,11 +276,13 @@ if (isset($update['message']['chat']['id'], $update['message']['text'])) {
     $client->sendMessage(
         $update['message']['chat']['id'],
         'Echo: ' . $update['message']['text']
-    )->await();
+    );
 }
+
+$client->flush();
 ```
 
-Register the webhook once:
+Register the webhook once from a separate CLI setup script (after creating the client):
 
 ```php
 $client->setWebhook(
@@ -242,7 +295,7 @@ $client->setWebhook(
 
 ### Multi-Process Webhook
 
-Forks each update into its own PHP CLI worker. Best for long-running handlers on a shared host without a persistent worker.
+Starts a separate PHP CLI process for each update using `exec()`. The same script receives the update as a command-line payload.
 
 ```php
 use Neili\Client;
@@ -255,11 +308,17 @@ $settings = (new Settings())
 
 $client = new Client($settings);
 
-// Replies 200 OK to Telegram immediately, then forks.
-$client->handleUpdate('YOUR_SECRET_TOKEN');
+// The HTTP parent starts a CLI worker and exits. The worker continues here.
+$update = $client->handleUpdate('YOUR_SECRET_TOKEN');
+
+if (isset($update['message']['chat']['id'], $update['message']['text'])) {
+    $client->sendMessage($update['message']['chat']['id'], 'Echo: ' . $update['message']['text']);
+}
+
+$client->flush();
 ```
 
-The child process re-enters `handleUpdate()` in CLI mode, reads the base64-encoded update from `$argv[1]`, and runs the handler. Errors thrown inside the worker are the consumer's responsibility.
+The child process re-enters the same script, reads the base64-encoded update from `$argv[1]` in `handleUpdate()`, and continues with the processing code below it. Worker stdout and stderr are redirected to `/dev/null`; configure application error reporting explicitly. This mode does not provide a durable queue or worker supervision.
 
 ### Fast-Ack Webhook
 
@@ -281,13 +340,17 @@ $update = $client->handleUpdate('YOUR_SECRET_TOKEN');
 $chatId = $update['message']['chat']['id'] ?? null;
 if ($chatId) {
     $client->sendChatAction($chatId, 'typing')->await();
-    $client->sendMessage($chatId, 'Working on it…')->await();
+    $client->sendMessage($chatId, 'Working on it…');
 }
+
+$client->flush();
 ```
 
 Detachment uses `fastcgi_finish_request()`, `litespeed_finish_request()`, or `frankenphp_finish_request()`. On other SAPIs it falls back to flushing the output buffer and behaves like a standard webhook.
 
 > **Note:** `setFastAck(true)` and `setMultiProcess(true)` are mutually exclusive. Enabling both throws `RuntimeException`.
+
+Fast-ack continues to occupy the current server worker until processing finishes. After acknowledgment, processing errors cannot change the response already sent to Telegram.
 
 ### Choosing a Mode
 
@@ -322,11 +385,11 @@ $poller = new Poller($client);
 | Method | Description |
 | --- | --- |
 | `onUpdate(callable $cb)` | Fires for **every** update, in addition to type-specific handlers |
-| `onError(callable $cb)` | Signature `fn(\Throwable $e, array $update, string $type): void`. The only error-observation channel. Exceptions thrown inside it are swallowed |
+| `onError(callable $cb)` | Signature `fn(\Throwable $e, array $update, string $type): void`. Reports polling errors and exceptions thrown by handlers. Exceptions thrown inside it are swallowed |
 
 ### Poller Type Handlers
 
-`onMessage`, `onEditedMessage`, `onMessageReaction`, `onMessageReactionCount`, `onChatBoost`, `onRemovedChatBoost`, `onChannelPost`, `onEditedChannelPost`, `onInlineQuery`, `onChosenInlineResult`, `onCallbackQuery`, `onShippingQuery`, `onPreCheckoutQuery`, `onPoll`, `onPollAnswer`, `onMyChatMember`, `onChatMember`, `onChatJoinRequest`, `onBusinessMessage`, `onEditedBusinessMessage`, `onDeletedBusinessMessage`, `onBusinessConnection`, `onGuestMessage`, `onPurchasedPaidMedia`, `onManagedBot`, `onSubscription`, `onStoppedMessageGeneration`.
+`onMessage`, `onEditedMessage`, `onMessageReaction`, `onMessageReactionCount`, `onChatBoost`, `onRemovedChatBoost`, `onChannelPost`, `onEditedChannelPost`, `onInlineQuery`, `onChosenInlineResult`, `onCallbackQuery`, `onShippingQuery`, `onPreCheckoutQuery`, `onPoll`, `onPollAnswer`, `onMyChatMember`, `onChatMember`, `onChatJoinRequest`, `onBusinessMessage`, `onEditedBusinessMessage`, `onDeletedBusinessMessage`, `onBusinessConnection`, `onGuestMessage`, `onPurchasedPaidMedia`, `onManagedBot`.
 
 Each accepts `callable(array $update): void`. Multiple callbacks can be registered for the same type.
 
@@ -343,7 +406,7 @@ Each accepts `callable(array $update): void`. Multiple callbacks can be register
 
 ### Poller Concurrency
 
-If `setPollerMaxConcurrency(n)` is configured, handler execution is gated by a `LocalSemaphore` of size `n`. Each update runs in its own async fiber, so slow handlers do not block polling.
+If `setPollerMaxConcurrency(n)` is configured, handler execution is gated by a `LocalSemaphore` of size `n`. Each update runs in its own async fiber. Awaiting non-blocking I/O allows other fibers to progress; blocking PHP calls still block the process. The limit covers handler execution, not requests detached from it by omitting `await()`. Avoid calling `flush()` inside a handler on the shared polling client: it also tracks the poller's own requests and other handlers' requests.
 
 ```php
 $settings->setPollerMaxConcurrency(50);
@@ -389,7 +452,7 @@ $inline = (new KeyboardBuilder())
 | `oneTime` | `oneTime(bool $oneTime = true): self` | Reply keyboard `one_time_keyboard` |
 | `persistent` | `persistent(bool $state = true): self` | Reply keyboard `is_persistent` |
 | `inputFieldPlaceholder` | `inputFieldPlaceholder(string): self` | Reply keyboard placeholder (1–64 chars) |
-| `selective` | `selective(bool $selective = true): self` | Reply + inline `selective` |
+| `selective` | `selective(bool $selective = true): self` | Reply-keyboard `selective` (omitted in inline mode) |
 | `forceReply` | `forceReply(bool $state = true): self` | Adds `force_reply` |
 | `clear` | `clear(): self` | Resets rows and flags |
 | `build` | `build(): array` | Final array for `reply_markup` |
@@ -414,7 +477,7 @@ $photo = new Media('/path/to/photo.jpg');
 echo $photo->filePath; // absolute real path
 ```
 
-Passing a `Media` to any `send*` or `edit*` method issues a `multipart/form-data` request with `attach://<key>` references.
+Pass a `Media` object to parameters whose signature accepts it. Supported methods use `multipart/form-data` and add `attach://<key>` references where needed. A string media value is sent as a Telegram file ID or remote URL; wrap local paths in `Media`. Upload bodies are streamed from disk.
 
 ```php
 $client->sendPhoto(123, new Media('/path/to/photo.jpg'), caption: 'Hello!')->await();
@@ -445,7 +508,8 @@ $client->downloadFile('FILE_ID', '/path/to/save.bin')->await();
 
 ## Client Methods Reference
 
-Every method returns `Amp\Future`. Use `->await()` in async code or `->map()` / `->catch()` / `->onResolve()` in callback style.
+Telegram API methods and `downloadFile()` return `Amp\Future`. Use `->await()` when you need a result or dependent ordering, or `->map()` / `->catch()` for callbacks.
+
 
 ### Messages
 
@@ -528,6 +592,8 @@ For **Telegram Stars** pass `currency: 'XTR'`, `providerToken: ''` and, for subs
 
 ### Webhooks & Updates
 
+- `flush(): void` — drain pending client operations; see [flush behavior](#waiting-for-pending-operations)
+
 - `handleUpdate(?string $secretToken = null): array`
 - `getUpdates(?int $offset, ?int $limit, ?int $timeout, ?array $allowedUpdates, ?array $extraParams): Future`
 - `setWebhook`, `deleteWebhook`, `getWebhookInfo`
@@ -577,8 +643,8 @@ For **Telegram Stars** pass `currency: 'XTR'`, `providerToken: ''` and, for subs
 `Client::__call()` maps any unknown method to a Telegram API call with the first argument as the payload:
 
 ```php
-// Equivalent to $client->request('getMyStarBalance', [])
-$client->getMyStarBalance()->await();
+// Use __call directly here to demonstrate a dynamic call with a raw payload.
+$client->__call('sendMessage', [['chat_id' => 123, 'text' => 'Hello']])->await();
 ```
 
 ---
@@ -594,17 +660,14 @@ $client->getMyStarBalance()->await();
 | `RateLimitException` | Telegram returns `error_code: 429` | ✅ After `getRetryAfter()` seconds |
 | `PermanentException` | Any other non-OK Telegram response (`400`, `401`, `403`, `404`, …) | ❌ No |
 
-**API surface:**
+**Exception accessors:**
 
-```php
-// RateLimitException
-$e->getRetryAfter(): int     // seconds, min 1
-$e->getParameters(): array   // e.g. ['retry_after' => 30]
-
-// PermanentException
-$e->getErrorCode(): int
-$e->getParameters(): array
-```
+| Exception | Method | Returns |
+| --- | --- | --- |
+| `RateLimitException` | `getRetryAfter()` | Retry delay in seconds (`int`, at least 1) |
+| `RateLimitException` | `getParameters()` | Telegram response parameters (`array`) |
+| `PermanentException` | `getErrorCode()` | Telegram error code (`int`) |
+| `PermanentException` | `getParameters()` | Telegram response parameters (`array`) |
 
 ### Catching Errors
 
@@ -617,7 +680,8 @@ use Neili\Exceptions\TransientException;
 try {
     $client->sendMessage(123, 'hi')->await();
 } catch (RateLimitException $e) {
-    sleep($e->getRetryAfter());
+    \Amp\delay($e->getRetryAfter());
+    // Retry explicitly if appropriate; waiting alone does not resend the request.
 } catch (TransientException $e) {
     // backoff and retry
 } catch (PermanentException $e) {
@@ -627,14 +691,14 @@ try {
 }
 ```
 
-Neili does **not** ship an internal logger. Errors surface exclusively through:
+Neili does **not** ship an internal logger. Handle errors through awaited Futures, `flush()` (which wraps failures in `Amp\CompositeException`), and `Poller::onError()` for polling and handler exceptions. A Future created without awaiting it inside a handler is not automatically routed to `onError()`.
 
-1. The exception hierarchy — every `Client` method rejects its `Future` with one of the exceptions above.
-2. `Poller::onError(callable)` — the only way to observe errors from inside the poll loop.
+Argument validation can throw synchronously before a Future is returned. File operations may also throw filesystem exceptions, and PHP `Error` instances are not translated into the API exception hierarchy. Keep a final `Throwable` catch at application boundaries if you need to report these failures.
+
+Client requests are not retried automatically. The Poller's backoff policy applies to fetching updates, not to resending failed outgoing messages.
 
 ---
 
 ## License
 
 This project is licensed under the [MIT License](LICENSE).
-EOF
