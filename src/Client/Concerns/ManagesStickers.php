@@ -54,7 +54,7 @@ trait ManagesStickers
             'user_id' => $userId,
             'name' => $name,
             'title' => $title,
-            'stickers' => json_encode($stickers),
+            'stickers' => $this->encodeJson($stickers),
         ];
 
         if ($stickerType !== null)
@@ -75,7 +75,7 @@ trait ManagesStickers
         return $this->request('addStickerToSet', [
             'user_id' => $userId,
             'name' => $name,
-            'sticker' => json_encode($sticker),
+            'sticker' => $this->encodeJson($sticker),
         ]);
     }
 
@@ -110,7 +110,7 @@ trait ManagesStickers
             'user_id' => $userId,
             'name' => $name,
             'old_sticker' => $oldSticker,
-            'sticker' => json_encode($sticker),
+            'sticker' => $this->encodeJson($sticker),
         ]);
     }
 
@@ -191,7 +191,7 @@ trait ManagesStickers
     {
         return $this->request('setStickerEmojiList', [
             'sticker' => $stickerId,
-            'emoji_list' => json_encode($emojiList),
+            'emoji_list' => $this->encodeJson($emojiList),
         ]);
     }
 
@@ -202,7 +202,7 @@ trait ManagesStickers
     {
         return $this->request('setStickerKeywords', [
             'sticker' => $stickerId,
-            'keywords' => json_encode($keywords),
+            'keywords' => $this->encodeJson($keywords),
         ]);
     }
 
@@ -213,7 +213,7 @@ trait ManagesStickers
     {
         return $this->request('setStickerMaskPosition', [
             'sticker' => $stickerId,
-            'mask_position' => json_encode($maskPosition),
+            'mask_position' => $this->encodeJson($maskPosition),
         ]);
     }
 
@@ -223,7 +223,7 @@ trait ManagesStickers
     public function getCustomEmojiStickers(array $customEmojiIds): Future
     {
         return $this->request('getCustomEmojiStickers', [
-            'custom_emoji_ids' => json_encode($customEmojiIds),
+            'custom_emoji_ids' => $this->encodeJson($customEmojiIds),
         ]);
     }
 }

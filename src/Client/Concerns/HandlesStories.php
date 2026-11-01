@@ -28,7 +28,7 @@ trait HandlesStories
     ): Future {
         $payload = [
             'business_connection_id' => $businessConnectionId,
-            'content' => json_encode($content),
+            'content' => $this->encodeJson($content),
             'active_period' => $activePeriod,
         ];
 
@@ -37,9 +37,9 @@ trait HandlesStories
         if ($parseMode !== null)
             $payload['parse_mode'] = $parseMode;
         if ($captionEntities !== null)
-            $payload['caption_entities'] = json_encode($captionEntities);
+            $payload['caption_entities'] = $this->encodeJson($captionEntities);
         if ($areas !== null)
-            $payload['areas'] = json_encode($areas);
+            $payload['areas'] = $this->encodeJson($areas);
         if ($postToChatPage !== null)
             $payload['post_to_chat_page'] = $postToChatPage;
         if ($protectContent !== null)
@@ -91,7 +91,7 @@ trait HandlesStories
         $payload = [
             'business_connection_id' => $businessConnectionId,
             'story_id' => $storyId,
-            'content' => json_encode($content),
+            'content' => $this->encodeJson($content),
         ];
 
         if ($caption !== null)
@@ -99,9 +99,9 @@ trait HandlesStories
         if ($parseMode !== null)
             $payload['parse_mode'] = $parseMode;
         if ($captionEntities !== null)
-            $payload['caption_entities'] = json_encode($captionEntities);
+            $payload['caption_entities'] = $this->encodeJson($captionEntities);
         if ($areas !== null)
-            $payload['areas'] = json_encode($areas);
+            $payload['areas'] = $this->encodeJson($areas);
 
         return $this->request('editStory', $extraParams ? array_merge($payload, $extraParams) : $payload);
     }

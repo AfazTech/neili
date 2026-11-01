@@ -60,7 +60,7 @@ trait HandlesPayments
             'payload' => $payloadStr,
             'provider_token' => $providerToken,
             'currency' => $currency,
-            'prices' => json_encode($prices),
+            'prices' => $this->encodeJson($prices),
         ];
 
         if ($subscriptionPeriod !== null)
@@ -72,7 +72,7 @@ trait HandlesPayments
         if ($maxTipAmount !== null)
             $payload['max_tip_amount'] = $maxTipAmount;
         if ($suggestedTipAmounts !== null)
-            $payload['suggested_tip_amounts'] = json_encode($suggestedTipAmounts);
+            $payload['suggested_tip_amounts'] = $this->encodeJson($suggestedTipAmounts);
         if ($startParameter !== null)
             $payload['start_parameter'] = $startParameter;
         if ($providerData !== null)
@@ -108,11 +108,11 @@ trait HandlesPayments
         if ($messageEffectId !== null)
             $payload['message_effect_id'] = $messageEffectId;
         if ($suggestedPostParameters !== null)
-            $payload['suggested_post_parameters'] = json_encode($suggestedPostParameters);
+            $payload['suggested_post_parameters'] = $this->encodeJson($suggestedPostParameters);
         if ($replyParameters !== null)
-            $payload['reply_parameters'] = json_encode($replyParameters);
+            $payload['reply_parameters'] = $this->encodeJson($replyParameters);
         if ($keyboard !== null)
-            $payload['reply_markup'] = json_encode($keyboard);
+            $payload['reply_markup'] = $this->encodeJson($keyboard);
 
         return $this->request('sendInvoice', $extraParams ? array_merge($payload, $extraParams) : $payload);
     }
@@ -152,7 +152,7 @@ trait HandlesPayments
             'description' => $description,
             'payload' => $payloadStr,
             'currency' => $currency,
-            'prices' => json_encode($prices),
+            'prices' => $this->encodeJson($prices),
         ];
         if ($providerToken !== null)
             $payload['provider_token'] = $providerToken;
@@ -161,7 +161,7 @@ trait HandlesPayments
         if ($maxTipAmount !== null)
             $payload['max_tip_amount'] = $maxTipAmount;
         if ($suggestedTipAmounts !== null)
-            $payload['suggested_tip_amounts'] = json_encode($suggestedTipAmounts);
+            $payload['suggested_tip_amounts'] = $this->encodeJson($suggestedTipAmounts);
         if ($providerData !== null)
             $payload['provider_data'] = $providerData;
         if ($photoUrl !== null)
@@ -203,7 +203,7 @@ trait HandlesPayments
     ): Future {
         $payload = ['shipping_query_id' => $shippingQueryId, 'ok' => $ok];
         if ($shippingOptions !== null)
-            $payload['shipping_options'] = json_encode($shippingOptions);
+            $payload['shipping_options'] = $this->encodeJson($shippingOptions);
         if ($errorMessage !== null)
             $payload['error_message'] = $errorMessage;
         return $this->request('answerShippingQuery', $payload);

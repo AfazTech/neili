@@ -189,6 +189,16 @@ trait MakesHttpRequests
         return new TransientException("Transport error: {$e->getMessage()}", (int) $e->getCode(), $e);
     }
 
+    /** Encode all outgoing JSON consistently, including nested API fields. */
+    private function encodeJson(mixed $value): string
+    {
+        try {
+            return json_encode($value, JSON_THROW_ON_ERROR);
+        } catch (\JsonException $error) {
+            throw new PermanentException('Invalid JSON request payload: ' . $error->getMessage(), 0, [], $error);
+        }
+    }
+
     private function request(string $method, array $params = []): Future
     {
         $url = $this->settings->getApiUrl() . $this->settings->getAccessToken() . '/' . $method;
@@ -197,7 +207,7 @@ trait MakesHttpRequests
             try {
                 $request = new Request($url, 'POST');
                 $request->setHeader('Content-Type', 'application/json');
-                $request->setBody(json_encode($params));
+                $request->setBody($this->encodeJson($params));
                 $this->applyTimeouts($request, $method, $params);
 
                 $response = $this->httpClient->request($request);
@@ -236,7 +246,9 @@ trait MakesHttpRequests
 
                 foreach ($fields as $key => $value) {
                     $safeKey = str_replace(['"', "\r", "\n"], '', (string) $key);
-                    $value = (string) $value;
+                    $value = is_array($value) || is_object($value) || is_bool($value)
+                        ? $this->encodeJson($value)
+                        : (string) $value;
 
                     $header = "--{$boundary}\r\n"
                             . "Content-Disposition: form-data; name=\"{$safeKey}\"\r\n"

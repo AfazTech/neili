@@ -71,7 +71,7 @@ trait ManagesChatMembers
         $payload = [
             'chat_id' => $chatId,
             'user_id' => $userId,
-            'permissions' => json_encode($permissions),
+            'permissions' => $this->encodeJson($permissions),
         ];
         if ($untilDate !== null) {
             $payload['until_date'] = $untilDate;

@@ -35,19 +35,19 @@ trait HandlesEphemeralMessages
             $payload['text'] = $text;
         }
         if ($richMessage !== null) {
-            $payload['rich_message'] = json_encode($richMessage);
+            $payload['rich_message'] = $this->encodeJson($richMessage);
         }
         if ($parseMode !== null) {
             $payload['parse_mode'] = $parseMode;
         }
         if ($entities !== null) {
-            $payload['entities'] = json_encode($entities);
+            $payload['entities'] = $this->encodeJson($entities);
         }
         if ($linkPreviewOptions !== null) {
-            $payload['link_preview_options'] = json_encode($linkPreviewOptions);
+            $payload['link_preview_options'] = $this->encodeJson($linkPreviewOptions);
         }
         if ($keyboard !== null) {
-            $payload['reply_markup'] = json_encode($keyboard);
+            $payload['reply_markup'] = $this->encodeJson($keyboard);
         }
         return $this->request('editEphemeralMessageText', $extraParams ? array_merge($payload, $extraParams) : $payload);
     }
@@ -76,12 +76,12 @@ trait HandlesEphemeralMessages
         ];
 
         if ($keyboard !== null) {
-            $payload['reply_markup'] = json_encode($keyboard);
+            $payload['reply_markup'] = $this->encodeJson($keyboard);
         }
 
         $attachments = [];
         $normalizedMedia = $this->extractMediaAttachments($media, $attachments);
-        $payload['media'] = json_encode($normalizedMedia);
+        $payload['media'] = $this->encodeJson($normalizedMedia);
 
         if ($extraParams !== null) {
             $payload = array_merge($payload, $extraParams);
@@ -118,13 +118,13 @@ trait HandlesEphemeralMessages
             $payload['parse_mode'] = $parseMode;
         }
         if ($captionEntities !== null) {
-            $payload['caption_entities'] = json_encode($captionEntities);
+            $payload['caption_entities'] = $this->encodeJson($captionEntities);
         }
         if ($showCaptionAboveMedia !== null) {
             $payload['show_caption_above_media'] = $showCaptionAboveMedia;
         }
         if ($keyboard !== null) {
-            $payload['reply_markup'] = json_encode($keyboard);
+            $payload['reply_markup'] = $this->encodeJson($keyboard);
         }
         return $this->request('editEphemeralMessageCaption', $extraParams ? array_merge($payload, $extraParams) : $payload);
     }
@@ -145,7 +145,7 @@ trait HandlesEphemeralMessages
             'ephemeral_message_id' => $ephemeralMessageId,
         ];
         if ($keyboard !== null) {
-            $payload['reply_markup'] = json_encode($keyboard);
+            $payload['reply_markup'] = $this->encodeJson($keyboard);
         }
         return $this->request('editEphemeralMessageReplyMarkup', $extraParams ? array_merge($payload, $extraParams) : $payload);
     }

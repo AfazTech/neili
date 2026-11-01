@@ -138,11 +138,11 @@ trait ManagesBotProfile
         ?array $extraParams = null
     ): Future {
         $payload = [
-            'commands' => json_encode($commands)
+            'commands' => $this->encodeJson($commands)
         ];
 
         if ($scope !== null) {
-            $payload['scope'] = json_encode($scope);
+            $payload['scope'] = $this->encodeJson($scope);
         }
 
         if ($languageCode !== null) {
@@ -163,7 +163,7 @@ trait ManagesBotProfile
         $payload = [];
 
         if ($scope !== null) {
-            $payload['scope'] = json_encode($scope);
+            $payload['scope'] = $this->encodeJson($scope);
         }
 
         if ($languageCode !== null) {
@@ -184,7 +184,7 @@ trait ManagesBotProfile
         $payload = [];
 
         if ($scope !== null) {
-            $payload['scope'] = json_encode($scope);
+            $payload['scope'] = $this->encodeJson($scope);
         }
 
         if ($languageCode !== null) {
@@ -205,7 +205,7 @@ trait ManagesBotProfile
         $payload = [];
 
         if ($rights !== null) {
-            $payload['rights'] = json_encode($rights);
+            $payload['rights'] = $this->encodeJson($rights);
         }
 
         if ($forChannels !== null) {
@@ -244,7 +244,7 @@ trait ManagesBotProfile
     public function setMyProfilePhoto(Media|array $photo): Future
     {
         [$payload, $files] = $this->buildInputProfilePhoto($photo);
-        $fields = ['photo' => json_encode($payload)];
+        $fields = ['photo' => $this->encodeJson($payload)];
 
         return $files
             ? $this->requestWithFile('setMyProfilePhoto', $fields, $files)

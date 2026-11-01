@@ -700,7 +700,7 @@ try {
 
 Neili does **not** ship an internal logger. Handle errors through awaited Futures, `flush()` (which wraps failures in `Amp\CompositeException`), and `Poller::onError()` for polling and handler exceptions. A Future created without awaiting it inside a handler is not automatically routed to `onError()`.
 
-Argument validation can throw synchronously before a Future is returned. File operations may also throw filesystem exceptions, and PHP `Error` instances are not translated into the API exception hierarchy. Keep a final `Throwable` catch at application boundaries if you need to report these failures.
+Outgoing JSON uses strict encoding for both request bodies and nested fields. Invalid UTF-8, recursive arrays, and unsupported JSON values throw `PermanentException` with the original `JsonException` as the cause, before sending the request. Nested-field encoding and argument validation can throw synchronously before a Future is returned. Multipart boolean and structured extra parameters are JSON-encoded as well. File operations may also throw filesystem exceptions, and PHP `Error` instances are not translated into the API exception hierarchy. Keep a final `Throwable` catch at application boundaries if you need to report these failures.
 
 Client requests are not retried automatically. The Poller's backoff policy applies to fetching updates, not to resending failed outgoing messages.
 

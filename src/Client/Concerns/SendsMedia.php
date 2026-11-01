@@ -25,7 +25,7 @@ trait SendsMedia
         if ($parseMode !== null)
             $fields['parse_mode'] = $parseMode;
         if ($captionEntities !== null)
-            $fields['caption_entities'] = json_encode($captionEntities);
+            $fields['caption_entities'] = $this->encodeJson($captionEntities);
         if ($showCaptionAboveMedia !== null)
             $fields['show_caption_above_media'] = $showCaptionAboveMedia;
         return $fields;
@@ -54,7 +54,7 @@ trait SendsMedia
         if ($hasSpoiler !== null)
             $fields['has_spoiler'] = $hasSpoiler;
         if ($keyboard !== null)
-            $fields['reply_markup'] = json_encode($keyboard);
+            $fields['reply_markup'] = $this->encodeJson($keyboard);
         if ($extraParams !== null)
             $fields = array_merge($fields, $extraParams);
 
@@ -86,7 +86,7 @@ trait SendsMedia
         if ($hasSpoiler !== null)
             $fields['has_spoiler'] = $hasSpoiler;
         if ($keyboard !== null)
-            $fields['reply_markup'] = json_encode($keyboard);
+            $fields['reply_markup'] = $this->encodeJson($keyboard);
         if ($extraParams !== null)
             $fields = array_merge($fields, $extraParams);
 
@@ -145,9 +145,9 @@ trait SendsMedia
         if ($protectContent !== null)
             $fields['protect_content'] = $protectContent;
         if ($replyParameters !== null)
-            $fields['reply_parameters'] = json_encode($replyParameters);
+            $fields['reply_parameters'] = $this->encodeJson($replyParameters);
         if ($suggestedPostParameters !== null)
-            $fields['suggested_post_parameters'] = json_encode($suggestedPostParameters);
+            $fields['suggested_post_parameters'] = $this->encodeJson($suggestedPostParameters);
         if ($businessConnectionId !== null)
             $fields['business_connection_id'] = $businessConnectionId;
         if ($messageThreadId !== null)
@@ -183,7 +183,7 @@ trait SendsMedia
             throw new InvalidArgumentException("Paid media items array cannot be empty");
         }
 
-        $fields['media'] = json_encode($normalized);
+        $fields['media'] = $this->encodeJson($normalized);
 
         return $attachments
             ? $this->requestWithFile('sendPaidMedia', $fields, $attachments)
@@ -227,7 +227,7 @@ trait SendsMedia
         if ($supportsStreaming !== null)
             $fields['supports_streaming'] = $supportsStreaming;
         if ($keyboard !== null)
-            $fields['reply_markup'] = json_encode($keyboard);
+            $fields['reply_markup'] = $this->encodeJson($keyboard);
         if ($extraParams !== null)
             $fields = array_merge($fields, $extraParams);
 
@@ -281,7 +281,7 @@ trait SendsMedia
         if ($title !== null)
             $fields['title'] = $title;
         if ($keyboard !== null)
-            $fields['reply_markup'] = json_encode($keyboard);
+            $fields['reply_markup'] = $this->encodeJson($keyboard);
         if ($extraParams !== null)
             $fields = array_merge($fields, $extraParams);
 
@@ -323,7 +323,7 @@ trait SendsMedia
         if ($disableContentTypeDetection !== null)
             $fields['disable_content_type_detection'] = $disableContentTypeDetection;
         if ($keyboard !== null)
-            $fields['reply_markup'] = json_encode($keyboard);
+            $fields['reply_markup'] = $this->encodeJson($keyboard);
         if ($extraParams !== null)
             $fields = array_merge($fields, $extraParams);
 
@@ -375,7 +375,7 @@ trait SendsMedia
         if ($height !== null)
             $fields['height'] = $height;
         if ($keyboard !== null)
-            $fields['reply_markup'] = json_encode($keyboard);
+            $fields['reply_markup'] = $this->encodeJson($keyboard);
         if ($extraParams !== null)
             $fields = array_merge($fields, $extraParams);
 
@@ -443,7 +443,7 @@ trait SendsMedia
         if ($duration !== null)
             $fields['duration'] = $duration;
         if ($keyboard !== null)
-            $fields['reply_markup'] = json_encode($keyboard);
+            $fields['reply_markup'] = $this->encodeJson($keyboard);
         if ($extraParams !== null)
             $fields = array_merge($fields, $extraParams);
 
@@ -474,7 +474,7 @@ trait SendsMedia
         if ($length !== null)
             $fields['length'] = $length;
         if ($keyboard !== null)
-            $fields['reply_markup'] = json_encode($keyboard);
+            $fields['reply_markup'] = $this->encodeJson($keyboard);
         if ($extraParams !== null)
             $fields = array_merge($fields, $extraParams);
 
@@ -573,7 +573,7 @@ trait SendsMedia
 
         $payload = [
             'chat_id' => $chatId,
-            'media' => json_encode($inputMedia),
+            'media' => $this->encodeJson($inputMedia),
         ];
 
         if ($disableNotification !== null)
@@ -582,7 +582,7 @@ trait SendsMedia
         // Prefer the modern ReplyParameters when explicitly provided;
         // otherwise fall back to the legacy reply_to_message_id.
         if ($replyParameters !== null) {
-            $payload['reply_parameters'] = json_encode($replyParameters);
+            $payload['reply_parameters'] = $this->encodeJson($replyParameters);
         } elseif ($replyToMessageId !== null) {
             $payload['reply_to_message_id'] = $replyToMessageId;
         }

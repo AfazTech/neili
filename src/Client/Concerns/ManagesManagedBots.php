@@ -47,7 +47,7 @@ trait ManagesManagedBots
             'is_access_restricted' => $isAccessRestricted,
         ];
         if ($addedUserIds !== null) {
-            $payload['added_user_ids'] = json_encode($addedUserIds);
+            $payload['added_user_ids'] = $this->encodeJson($addedUserIds);
         }
         return $this->request('setManagedBotAccessSettings', $payload);
     }

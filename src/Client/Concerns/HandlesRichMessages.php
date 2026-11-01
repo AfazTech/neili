@@ -78,7 +78,7 @@ trait HandlesRichMessages
 
         $payload = [
             'chat_id' => $chatId,
-            'rich_message' => json_encode($richMessage),
+            'rich_message' => $this->encodeJson($richMessage),
         ];
         if ($disableNotification !== null) {
             $payload['disable_notification'] = $disableNotification;
@@ -93,13 +93,13 @@ trait HandlesRichMessages
             $payload['message_effect_id'] = $messageEffectId;
         }
         if ($suggestedPostParameters !== null) {
-            $payload['suggested_post_parameters'] = json_encode($suggestedPostParameters);
+            $payload['suggested_post_parameters'] = $this->encodeJson($suggestedPostParameters);
         }
         if ($replyParameters !== null) {
-            $payload['reply_parameters'] = json_encode($replyParameters);
+            $payload['reply_parameters'] = $this->encodeJson($replyParameters);
         }
         if ($keyboard !== null) {
-            $payload['reply_markup'] = json_encode($keyboard);
+            $payload['reply_markup'] = $this->encodeJson($keyboard);
         }
         if ($messageThreadId !== null) {
             $payload['message_thread_id'] = $messageThreadId;
@@ -111,7 +111,7 @@ trait HandlesRichMessages
             $payload['business_connection_id'] = $businessConnectionId;
         }
         if ($ephemeralMessageParameters !== null) {
-            $payload['ephemeral_message_parameters'] = json_encode($ephemeralMessageParameters);
+            $payload['ephemeral_message_parameters'] = $this->encodeJson($ephemeralMessageParameters);
         }
         if ($extraParams !== null) {
             $payload = array_merge($payload, $extraParams);
@@ -136,7 +136,7 @@ trait HandlesRichMessages
         $payload = [
             'chat_id' => $chatId,
             'draft_id' => $draftId,
-            'rich_message' => json_encode($richMessage),
+            'rich_message' => $this->encodeJson($richMessage),
         ];
         if ($messageThreadId !== null) {
             $payload['message_thread_id'] = $messageThreadId;
@@ -174,7 +174,7 @@ trait HandlesRichMessages
             $payload['parse_mode'] = $parseMode;
         }
         if ($entities !== null) {
-            $payload['entities'] = json_encode($entities);
+            $payload['entities'] = $this->encodeJson($entities);
         }
         if ($messageThreadId !== null) {
             $payload['message_thread_id'] = $messageThreadId;

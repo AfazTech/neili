@@ -45,7 +45,7 @@ trait HandlesBusiness
     ): Future {
         return $this->request('deleteBusinessMessages', [
             'business_connection_id' => $businessConnectionId,
-            'message_ids' => json_encode($messageIds),
+            'message_ids' => $this->encodeJson($messageIds),
         ]);
     }
 
@@ -113,7 +113,7 @@ trait HandlesBusiness
 
         $payload = [
             'business_connection_id' => $businessConnectionId,
-            'photo' => json_encode($profilePhoto),
+            'photo' => $this->encodeJson($profilePhoto),
         ];
         if ($isPublic !== null) {
             $payload['is_public'] = $isPublic;
@@ -151,7 +151,7 @@ trait HandlesBusiness
         return $this->request('setBusinessAccountGiftSettings', [
             'business_connection_id' => $businessConnectionId,
             'show_gift_button' => $showGiftButton,
-            'accepted_gift_types' => json_encode($acceptedGiftTypes),
+            'accepted_gift_types' => $this->encodeJson($acceptedGiftTypes),
         ]);
     }
 
@@ -263,7 +263,7 @@ trait HandlesBusiness
         $payload = [
             'business_connection_id' => $businessConnectionId,
             'chat_id' => $chatId,
-            'checklist' => json_encode($checklist),
+            'checklist' => $this->encodeJson($checklist),
         ];
         if ($disableNotification !== null) {
             $payload['disable_notification'] = $disableNotification;
@@ -275,10 +275,10 @@ trait HandlesBusiness
             $payload['message_effect_id'] = $messageEffectId;
         }
         if ($replyParameters !== null) {
-            $payload['reply_parameters'] = json_encode($replyParameters);
+            $payload['reply_parameters'] = $this->encodeJson($replyParameters);
         }
         if ($replyMarkup !== null) {
-            $payload['reply_markup'] = json_encode($replyMarkup);
+            $payload['reply_markup'] = $this->encodeJson($replyMarkup);
         }
         return $this->request('sendChecklist', $extraParams ? array_merge($payload, $extraParams) : $payload);
     }
@@ -300,10 +300,10 @@ trait HandlesBusiness
             'business_connection_id' => $businessConnectionId,
             'chat_id' => $chatId,
             'message_id' => $messageId,
-            'checklist' => json_encode($checklist),
+            'checklist' => $this->encodeJson($checklist),
         ];
         if ($replyMarkup !== null) {
-            $payload['reply_markup'] = json_encode($replyMarkup);
+            $payload['reply_markup'] = $this->encodeJson($replyMarkup);
         }
         return $this->request('editMessageChecklist', $extraParams ? array_merge($payload, $extraParams) : $payload);
     }

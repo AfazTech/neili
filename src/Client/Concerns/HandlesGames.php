@@ -43,10 +43,10 @@ trait HandlesGames
             $payload['message_effect_id'] = $messageEffectId;
         }
         if ($replyParameters !== null) {
-            $payload['reply_parameters'] = json_encode($replyParameters);
+            $payload['reply_parameters'] = $this->encodeJson($replyParameters);
         }
         if ($keyboard !== null) {
-            $payload['reply_markup'] = json_encode($keyboard);
+            $payload['reply_markup'] = $this->encodeJson($keyboard);
         }
         if ($businessConnectionId !== null) {
             $payload['business_connection_id'] = $businessConnectionId;

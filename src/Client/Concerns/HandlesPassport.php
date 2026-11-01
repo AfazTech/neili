@@ -19,7 +19,7 @@ trait HandlesPassport
     {
         return $this->request('setPassportDataErrors', [
             'user_id' => $userId,
-            'errors' => json_encode($errors),
+            'errors' => $this->encodeJson($errors),
         ]);
     }
 }

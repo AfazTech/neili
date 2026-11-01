@@ -40,7 +40,7 @@ trait HandlesWebhooks
             $payload['max_connections'] = $maxConnections;
         }
         if ($allowedUpdates !== null) {
-            $payload['allowed_updates'] = json_encode($allowedUpdates);
+            $payload['allowed_updates'] = $this->encodeJson($allowedUpdates);
         }
         if ($dropPendingUpdates !== null) {
             $payload['drop_pending_updates'] = $dropPendingUpdates;

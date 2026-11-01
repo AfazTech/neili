@@ -45,7 +45,7 @@ trait HandlesUpdates
             // either can contain shell metacharacters (paths with spaces,
             // for instance), and shell injection would be catastrophic.
             if ($this->settings->isMultiProcess()) {
-                $payload = base64_encode(json_encode($update));
+                $payload = base64_encode($this->encodeJson($update));
                 $executedFile = (string) ($_SERVER['SCRIPT_FILENAME'] ?? '');
                 $phpBinary = $this->settings->getPhpBinary();
 
@@ -183,7 +183,7 @@ trait HandlesUpdates
         }
 
         if ($allowedUpdates !== null) {
-            $payload['allowed_updates'] = json_encode($allowedUpdates);
+            $payload['allowed_updates'] = $this->encodeJson($allowedUpdates);
         }
 
         return $this->request('getUpdates', $extraParams ? array_merge($payload, $extraParams) : $payload);

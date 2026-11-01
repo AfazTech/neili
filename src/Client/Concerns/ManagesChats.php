@@ -114,7 +114,7 @@ trait ManagesChats
      */
     public function setChatPermissions(int|string $chatId, array $permissions, ?array $extraParams = null): Future
     {
-        $payload = ['chat_id' => $chatId, 'permissions' => json_encode($permissions)];
+        $payload = ['chat_id' => $chatId, 'permissions' => $this->encodeJson($permissions)];
         return $this->request('setChatPermissions', $payload + ($extraParams ?? []));
     }
 
@@ -237,7 +237,7 @@ trait ManagesChats
         }
 
         if ($menuButton !== null) {
-            $payload['menu_button'] = json_encode($menuButton);
+            $payload['menu_button'] = $this->encodeJson($menuButton);
         }
 
         return $this->request('setChatMenuButton', $extraParams ? array_merge($payload, $extraParams) : $payload);

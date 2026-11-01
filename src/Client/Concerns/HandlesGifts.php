@@ -68,7 +68,7 @@ trait HandlesGifts
             $payload['text_parse_mode'] = $textParseMode;
         }
         if ($textEntities !== null) {
-            $payload['text_entities'] = json_encode($textEntities);
+            $payload['text_entities'] = $this->encodeJson($textEntities);
         }
 
         return $this->request('sendGift', $extraParams ? array_merge($payload, $extraParams) : $payload);
@@ -98,7 +98,7 @@ trait HandlesGifts
             $payload['text_parse_mode'] = $textParseMode;
         }
         if ($textEntities !== null) {
-            $payload['text_entities'] = json_encode($textEntities);
+            $payload['text_entities'] = $this->encodeJson($textEntities);
         }
         return $this->request('giftPremiumSubscription', $extraParams ? array_merge($payload, $extraParams) : $payload);
     }

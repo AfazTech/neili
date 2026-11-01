@@ -56,7 +56,7 @@ trait HandlesInlineQueries
     ): Future {
         $payload = [
             'inline_query_id' => $inlineQueryId,
-            'results' => json_encode($results),
+            'results' => $this->encodeJson($results),
         ];
         if ($cacheTime !== null)
             $payload['cache_time'] = $cacheTime;
@@ -65,7 +65,7 @@ trait HandlesInlineQueries
         if ($nextOffset !== null)
             $payload['next_offset'] = $nextOffset;
         if ($button !== null)
-            $payload['button'] = json_encode($button);
+            $payload['button'] = $this->encodeJson($button);
         return $this->request('answerInlineQuery', $extraParams ? array_merge($payload, $extraParams) : $payload);
     }
 
@@ -81,7 +81,7 @@ trait HandlesInlineQueries
     ): Future {
         $payload = [
             'web_app_query_id' => $webAppQueryId,
-            'result' => json_encode($result),
+            'result' => $this->encodeJson($result),
         ];
 
         return $this->request('answerWebAppQuery', $extraParams ? array_merge($payload, $extraParams) : $payload);
@@ -96,7 +96,7 @@ trait HandlesInlineQueries
     {
         return $this->request('answerGuestQuery', [
             'guest_query_id' => $guestQueryId,
-            'result' => json_encode($result),
+            'result' => $this->encodeJson($result),
         ]);
     }
 
@@ -116,7 +116,7 @@ trait HandlesInlineQueries
     ): Future {
         $payload = [
             'user_id' => $userId,
-            'result' => json_encode($result),
+            'result' => $this->encodeJson($result),
         ];
         if ($allowUserChats !== null)
             $payload['allow_user_chats'] = $allowUserChats;
@@ -138,7 +138,7 @@ trait HandlesInlineQueries
     {
         return $this->request('savePreparedKeyboardButton', [
             'user_id' => $userId,
-            'button' => json_encode($button),
+            'button' => $this->encodeJson($button),
         ]);
     }
 }

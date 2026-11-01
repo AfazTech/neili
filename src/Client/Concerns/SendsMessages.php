@@ -34,15 +34,15 @@ trait SendsMessages
         $payload = ['chat_id' => $chatId, 'text' => $text];
 
         if ($keyboard !== null)
-            $payload['reply_markup'] = json_encode($keyboard);
+            $payload['reply_markup'] = $this->encodeJson($keyboard);
         if ($messageThreadId !== null)
             $payload['message_thread_id'] = $messageThreadId;
         if ($directMessagesTopicId !== null)
             $payload['direct_messages_topic_id'] = $directMessagesTopicId;
         if ($replyParameters !== null)
-            $payload['reply_parameters'] = json_encode($replyParameters);
+            $payload['reply_parameters'] = $this->encodeJson($replyParameters);
         if ($linkPreviewOptions !== null)
-            $payload['link_preview_options'] = json_encode($linkPreviewOptions);
+            $payload['link_preview_options'] = $this->encodeJson($linkPreviewOptions);
         if ($disableNotification !== null)
             $payload['disable_notification'] = $disableNotification;
         if ($protectContent !== null)
@@ -54,13 +54,13 @@ trait SendsMessages
         if ($businessConnectionId !== null)
             $payload['business_connection_id'] = $businessConnectionId;
         if ($suggestedPostParameters !== null)
-            $payload['suggested_post_parameters'] = json_encode($suggestedPostParameters);
+            $payload['suggested_post_parameters'] = $this->encodeJson($suggestedPostParameters);
         if ($parseMode !== null)
             $payload['parse_mode'] = $parseMode;
         if ($entities !== null)
-            $payload['entities'] = json_encode($entities);
+            $payload['entities'] = $this->encodeJson($entities);
         if ($ephemeralMessageParameters !== null)
-            $payload['ephemeral_message_parameters'] = json_encode($ephemeralMessageParameters);
+            $payload['ephemeral_message_parameters'] = $this->encodeJson($ephemeralMessageParameters);
 
         return $this->request('sendMessage', $extraParams ? array_merge($payload, $extraParams) : $payload);
     }
@@ -116,15 +116,15 @@ trait SendsMessages
         if ($text !== null)
             $payload['text'] = $text;
         if ($richMessage !== null)
-            $payload['rich_message'] = json_encode($richMessage);
+            $payload['rich_message'] = $this->encodeJson($richMessage);
         if ($parseMode !== null)
             $payload['parse_mode'] = $parseMode;
         if ($entities !== null)
-            $payload['entities'] = json_encode($entities);
+            $payload['entities'] = $this->encodeJson($entities);
         if ($linkPreviewOptions !== null)
-            $payload['link_preview_options'] = json_encode($linkPreviewOptions);
+            $payload['link_preview_options'] = $this->encodeJson($linkPreviewOptions);
         if ($keyboard !== null)
-            $payload['reply_markup'] = json_encode($keyboard);
+            $payload['reply_markup'] = $this->encodeJson($keyboard);
         if ($businessConnectionId !== null)
             $payload['business_connection_id'] = $businessConnectionId;
 
@@ -159,11 +159,11 @@ trait SendsMessages
         if ($parseMode !== null)
             $payload['parse_mode'] = $parseMode;
         if ($captionEntities !== null)
-            $payload['caption_entities'] = json_encode($captionEntities);
+            $payload['caption_entities'] = $this->encodeJson($captionEntities);
         if ($showCaptionAboveMedia !== null)
             $payload['show_caption_above_media'] = $showCaptionAboveMedia;
         if ($keyboard !== null)
-            $payload['reply_markup'] = json_encode($keyboard);
+            $payload['reply_markup'] = $this->encodeJson($keyboard);
 
         return $this->request('editMessageCaption', $extraParams ? array_merge($payload, $extraParams) : $payload);
     }
@@ -189,12 +189,12 @@ trait SendsMessages
         }
 
         if ($keyboard !== null) {
-            $payload['reply_markup'] = json_encode($keyboard);
+            $payload['reply_markup'] = $this->encodeJson($keyboard);
         }
 
         $attachments = [];
         $normalizedMedia = $this->extractMediaAttachments($media, $attachments);
-        $payload['media'] = json_encode($normalizedMedia);
+        $payload['media'] = $this->encodeJson($normalizedMedia);
 
         if ($extraParams !== null) {
             $payload = array_merge($payload, $extraParams);
@@ -243,7 +243,7 @@ trait SendsMessages
         if ($livePeriod !== null)
             $payload['live_period'] = $livePeriod;
         if ($keyboard !== null)
-            $payload['reply_markup'] = json_encode($keyboard);
+            $payload['reply_markup'] = $this->encodeJson($keyboard);
         if ($businessConnectionId !== null)
             $payload['business_connection_id'] = $businessConnectionId;
 
@@ -270,7 +270,7 @@ trait SendsMessages
         }
 
         if ($keyboard !== null)
-            $payload['reply_markup'] = json_encode($keyboard);
+            $payload['reply_markup'] = $this->encodeJson($keyboard);
 
         return $this->request('editMessageReplyMarkup', $extraParams ? array_merge($payload, $extraParams) : $payload);
     }
@@ -290,7 +290,7 @@ trait SendsMessages
     {
         return $this->request('deleteMessages', [
             'chat_id' => $chatId,
-            'message_ids' => json_encode($messageIds),
+            'message_ids' => $this->encodeJson($messageIds),
         ]);
     }
 
@@ -332,7 +332,7 @@ trait SendsMessages
         if ($messageEffectId !== null)
             $payload['message_effect_id'] = $messageEffectId;
         if ($suggestedPostParameters !== null)
-            $payload['suggested_post_parameters'] = json_encode($suggestedPostParameters);
+            $payload['suggested_post_parameters'] = $this->encodeJson($suggestedPostParameters);
 
         return $this->request('forwardMessage', $extraParams ? array_merge($payload, $extraParams) : $payload);
     }
@@ -353,7 +353,7 @@ trait SendsMessages
         $payload = [
             'chat_id' => $chatId,
             'from_chat_id' => $fromChatId,
-            'message_ids' => json_encode($messageIds),
+            'message_ids' => $this->encodeJson($messageIds),
         ];
         if ($disableNotification !== null)
             $payload['disable_notification'] = $disableNotification;
@@ -401,13 +401,13 @@ trait SendsMessages
         if ($parseMode !== null)
             $payload['parse_mode'] = $parseMode;
         if ($captionEntities !== null)
-            $payload['caption_entities'] = json_encode($captionEntities);
+            $payload['caption_entities'] = $this->encodeJson($captionEntities);
         if ($showCaptionAboveMedia !== null)
             $payload['show_caption_above_media'] = $showCaptionAboveMedia;
         if ($videoStartTimestamp !== null)
             $payload['video_start_timestamp'] = $videoStartTimestamp;
         if ($keyboard !== null)
-            $payload['reply_markup'] = json_encode($keyboard);
+            $payload['reply_markup'] = $this->encodeJson($keyboard);
         if ($messageThreadId !== null)
             $payload['message_thread_id'] = $messageThreadId;
         if ($directMessagesTopicId !== null)
@@ -421,9 +421,9 @@ trait SendsMessages
         if ($messageEffectId !== null)
             $payload['message_effect_id'] = $messageEffectId;
         if ($replyParameters !== null)
-            $payload['reply_parameters'] = json_encode($replyParameters);
+            $payload['reply_parameters'] = $this->encodeJson($replyParameters);
         if ($suggestedPostParameters !== null)
-            $payload['suggested_post_parameters'] = json_encode($suggestedPostParameters);
+            $payload['suggested_post_parameters'] = $this->encodeJson($suggestedPostParameters);
 
         return $this->request('copyMessage', $extraParams ? array_merge($payload, $extraParams) : $payload);
     }
@@ -445,7 +445,7 @@ trait SendsMessages
         $payload = [
             'chat_id' => $chatId,
             'from_chat_id' => $fromChatId,
-            'message_ids' => json_encode($messageIds),
+            'message_ids' => $this->encodeJson($messageIds),
         ];
         if ($disableNotification !== null)
             $payload['disable_notification'] = $disableNotification;
@@ -482,7 +482,7 @@ trait SendsMessages
         }
 
         if ($keyboard !== null)
-            $payload['reply_markup'] = json_encode($keyboard);
+            $payload['reply_markup'] = $this->encodeJson($keyboard);
         if ($businessConnectionId !== null)
             $payload['business_connection_id'] = $businessConnectionId;
 
@@ -504,7 +504,7 @@ trait SendsMessages
             'message_id' => $messageId,
         ];
         if ($reaction !== null)
-            $payload['reaction'] = json_encode($reaction);
+            $payload['reaction'] = $this->encodeJson($reaction);
         if ($isBig !== null)
             $payload['is_big'] = $isBig;
         return $this->request('setMessageReaction', $extraParams ? array_merge($payload, $extraParams) : $payload);
@@ -598,13 +598,13 @@ trait SendsMessages
         if ($messageEffectId !== null)
             $payload['message_effect_id'] = $messageEffectId;
         if ($replyParameters !== null)
-            $payload['reply_parameters'] = json_encode($replyParameters);
+            $payload['reply_parameters'] = $this->encodeJson($replyParameters);
         if ($keyboard !== null)
-            $payload['reply_markup'] = json_encode($keyboard);
+            $payload['reply_markup'] = $this->encodeJson($keyboard);
         if ($businessConnectionId !== null)
             $payload['business_connection_id'] = $businessConnectionId;
         if ($suggestedPostParameters !== null)
-            $payload['suggested_post_parameters'] = json_encode($suggestedPostParameters);
+            $payload['suggested_post_parameters'] = $this->encodeJson($suggestedPostParameters);
         return $this->request('sendDice', $extraParams ? array_merge($payload, $extraParams) : $payload);
     }
 
@@ -674,7 +674,7 @@ trait SendsMessages
         $payload = [
             'chat_id' => $chatId,
             'question' => $question,
-            'options' => json_encode($normalizedOptions),
+            'options' => $this->encodeJson($normalizedOptions),
         ];
 
         if ($isAnonymous !== null)
@@ -682,21 +682,21 @@ trait SendsMessages
         if ($type !== null)
             $payload['type'] = $type;
         if ($questionEntities !== null)
-            $payload['question_entities'] = json_encode($questionEntities);
+            $payload['question_entities'] = $this->encodeJson($questionEntities);
         if ($media !== null)
-            $payload['media'] = json_encode(
+            $payload['media'] = $this->encodeJson(
                 $this->extractPollMediaAttachments($media, $attachments, 'poll_media')
             );
         if ($description !== null)
             $payload['description'] = $description;
         if ($descriptionEntities !== null)
-            $payload['description_entities'] = json_encode($descriptionEntities);
+            $payload['description_entities'] = $this->encodeJson($descriptionEntities);
         if ($explanation !== null)
             $payload['explanation'] = $explanation;
         if ($explanationEntities !== null)
-            $payload['explanation_entities'] = json_encode($explanationEntities);
+            $payload['explanation_entities'] = $this->encodeJson($explanationEntities);
         if ($explanationMedia !== null)
-            $payload['explanation_media'] = json_encode(
+            $payload['explanation_media'] = $this->encodeJson(
                 $this->extractPollMediaAttachments($explanationMedia, $attachments, 'explanation_media')
             );
         if ($allowsMultipleAnswers !== null)
@@ -712,9 +712,9 @@ trait SendsMessages
         if ($membersOnly !== null)
             $payload['members_only'] = $membersOnly;
         if ($countryCodes !== null)
-            $payload['country_codes'] = json_encode($countryCodes);
+            $payload['country_codes'] = $this->encodeJson($countryCodes);
         if ($correctOptionIds !== null)
-            $payload['correct_option_ids'] = json_encode($correctOptionIds);
+            $payload['correct_option_ids'] = $this->encodeJson($correctOptionIds);
         if ($openPeriod !== null)
             $payload['open_period'] = $openPeriod;
         if ($closeDate !== null)
@@ -730,9 +730,9 @@ trait SendsMessages
         if ($messageEffectId !== null)
             $payload['message_effect_id'] = $messageEffectId;
         if ($replyParameters !== null)
-            $payload['reply_parameters'] = json_encode($replyParameters);
+            $payload['reply_parameters'] = $this->encodeJson($replyParameters);
         if ($keyboard !== null)
-            $payload['reply_markup'] = json_encode($keyboard);
+            $payload['reply_markup'] = $this->encodeJson($keyboard);
         if ($businessConnectionId !== null)
             $payload['business_connection_id'] = $businessConnectionId;
         if ($messageThreadId !== null)
@@ -758,7 +758,7 @@ trait SendsMessages
     ): Future {
         $payload = ['chat_id' => $chatId, 'message_id' => $messageId];
         if ($keyboard !== null)
-            $payload['reply_markup'] = json_encode($keyboard);
+            $payload['reply_markup'] = $this->encodeJson($keyboard);
         if ($businessConnectionId !== null)
             $payload['business_connection_id'] = $businessConnectionId;
         return $this->request('stopPoll', $extraParams ? array_merge($payload, $extraParams) : $payload);
