@@ -264,6 +264,10 @@ $poller->start(); // blocks
 
 ### Standard Webhook
 
+The endpoint accepts POST requests. If a secret token is configured, it is checked with `hash_equals()`; a missing or incorrect token sets HTTP 403. Other methods set HTTP 405 with `Allow: POST`. Malformed JSON or a payload without a non-negative integer `update_id` sets HTTP 400 and throws `UnexpectedValueException`. Preserve this status if your application catches the exception. Unknown future update fields are retained.
+
+The CLI worker applies the same payload validation and rejects invalid base64. Validation happens before fast-ack or starting a multi-process worker.
+
 ```php
 use Neili\Client;
 use Neili\Settings;

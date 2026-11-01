@@ -29,15 +29,27 @@ trait HandlesUpdates
             // Webhook mode
             if ($secretToken !== null) {
                 $headerToken = $this->readSecretTokenHeader();
-                if ($headerToken !== $secretToken) {
+                if ($headerToken === null || !hash_equals($secretToken, $headerToken)) {
+                    http_response_code(403);
                     throw new \RuntimeException('Invalid secret token');
                 }
             }
 
+            if (($_SERVER['REQUEST_METHOD'] ?? 'POST') !== 'POST') {
+                http_response_code(405);
+                header('Allow: POST');
+                throw new \RuntimeException('Webhook requests must use POST');
+            }
+
             $rawInput = file_get_contents('php://input');
-            $update = json_decode($rawInput, true);
-            if (json_last_error() !== JSON_ERROR_NONE) {
-                throw new \RuntimeException('Invalid JSON: ' . json_last_error_msg());
+            try {
+                if ($rawInput === false) {
+                    throw new \UnexpectedValueException('Cannot read webhook payload');
+                }
+                $update = $this->decodeUpdate($rawInput);
+            } catch (\UnexpectedValueException $error) {
+                http_response_code(400);
+                throw $error;
             }
 
             // Multi-process support: fork a new PHP process for the update.
@@ -73,10 +85,27 @@ trait HandlesUpdates
         if (!isset($argv[1])) {
             throw new \RuntimeException('No payload provided in CLI');
         }
-        $update = json_decode(base64_decode($argv[1]), true);
-        if (json_last_error() !== JSON_ERROR_NONE) {
-            throw new \RuntimeException('Invalid JSON in CLI payload: ' . json_last_error_msg());
+        $payload = base64_decode((string) $argv[1], true);
+        if ($payload === false) {
+            throw new \UnexpectedValueException('Invalid base64 in CLI payload');
         }
+        return $this->decodeUpdate($payload);
+    }
+
+    /** Validate the common update envelope without rejecting future update types. */
+    private function decodeUpdate(string $payload): array
+    {
+        try {
+            $update = json_decode($payload, true, 512, JSON_THROW_ON_ERROR);
+        } catch (\JsonException $error) {
+            throw new \UnexpectedValueException('Invalid update JSON: ' . $error->getMessage(), 0, $error);
+        }
+
+        if (!is_array($update) || !isset($update['update_id'])
+            || !is_int($update['update_id']) || $update['update_id'] < 0) {
+            throw new \UnexpectedValueException('Invalid update: expected an object with a non-negative integer update_id');
+        }
+
         return $update;
     }
 
