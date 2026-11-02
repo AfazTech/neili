@@ -36,6 +36,8 @@ class Settings
      */
     private bool $useMultiProcess = false;
 
+    private int $multiProcessMaxWorkers = 100;
+
     /**
      * Flag to enable fast-ack webhook mode.
      *
@@ -185,6 +187,7 @@ class Settings
             );
         }
         if ($state && !function_exists('exec')) throw new \RuntimeException("Cannot enable multi-process: exec disabled");
+        if ($state && !function_exists('proc_open')) throw new \RuntimeException("Cannot enable multi-process: proc_open disabled");
         $this->useMultiProcess = $state;
         return $this;
     }
@@ -193,6 +196,18 @@ class Settings
      * Check if multi-process is enabled
      */
     public function isMultiProcess(): bool { return $this->useMultiProcess; }
+
+    /** Maximum simultaneous workers per script and bot token on this host. */
+    public function setMultiProcessMaxWorkers(int $limit): self {
+        if ($limit < 1) {
+            throw new \InvalidArgumentException('Multi-process max workers must be positive');
+        }
+        $this->multiProcessMaxWorkers = $limit;
+        return $this;
+    }
+
+    public function getMultiProcessMaxWorkers(): int { return $this->multiProcessMaxWorkers; }
+
 
     /**
      * Enable or disable fast-ack webhook mode.

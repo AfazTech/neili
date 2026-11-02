@@ -96,6 +96,16 @@ final class SettingsTest extends TestCase
         self::assertTrue($settings->isMultiProcess());
     }
 
+    public function testMultiProcessWorkerLimit(): void
+    {
+        $settings = new Settings();
+        self::assertSame(100, $settings->getMultiProcessMaxWorkers());
+        self::assertSame($settings, $settings->setMultiProcessMaxWorkers(4));
+        self::assertSame(4, $settings->getMultiProcessMaxWorkers());
+        $this->expectException(\InvalidArgumentException::class);
+        $settings->setMultiProcessMaxWorkers(0);
+    }
+
     public function testSettingsDoesNotExposeLoggerApi(): void
     {
         $reflection = new \ReflectionClass(Settings::class);

@@ -80,7 +80,7 @@ Neili wraps the Telegram Bot API with Amp-based asynchronous primitives. It ship
 | `amphp/file` | `^4` |
 | `amphp/http-client` | `^5.3` |
 | Composer | Resolves dependencies and checks required PHP extensions |
-| PHP function `exec()` | Required **only** for multi-process webhook mode |
+| PHP function `exec()` | Required **only** for multi-process webhook mode (also requires `proc_open()`) |
 
 ---
 
@@ -124,6 +124,7 @@ $client = new \Neili\Client($settings);
 | `setApiVerifySSL(bool)` | `isApiVerifySSL()` | `bool` | `true` | Verify TLS certificates and peer names for the built-in HTTP client; custom clients configure TLS themselves |
 | `setTimeout(int, ?int)` | `getTimeout()` / `getConnectionTimeout()` | `int` | `10` / `5` | Transfer timeout (sec) and connection timeout (sec) |
 | `setMultiProcess(bool)` | `isMultiProcess()` | `bool` | `false` | Fork each webhook update into a PHP CLI worker. Mutually exclusive with `setFastAck(true)`. Throws `RuntimeException` if `exec()` is disabled |
+| `setMultiProcessMaxWorkers(int)` | `getMultiProcessMaxWorkers()` | `int` | `100` | Positive maximum simultaneous workers per script and bot token on this host |
 | `setFastAck(bool)` | `isFastAck()` | `bool` | `false` | Reply `200 OK` to Telegram immediately, then continue processing. Mutually exclusive with `setMultiProcess(true)` |
 | `setPhpBinary(string)` | `getPhpBinary()` | `string` | `/usr/bin/php` | Path to PHP CLI binary for multi-process workers |
 | `setPollerTimeout(int)` | `getPollerTimeout()` | `int` | `3` | Telegram long-poll timeout in seconds |
@@ -301,7 +302,7 @@ $client->setWebhook(
 
 ### Multi-Process Webhook
 
-Starts a separate PHP CLI process for each update using `exec()`. The same script receives the update as a command-line payload.
+Starts a separate PHP CLI process for each update. The same script receives the update as a command-line payload. `proc_open()` launches a detached worker with an inherited OS file lock that reserves capacity. No startup handshake or processing confirmation is performed. When all worker slots are occupied, the endpoint returns `503` with `Retry-After: 1` so Telegram can retry; it does not create another worker or wait for capacity.
 
 ```php
 use Neili\Client;
@@ -310,6 +311,7 @@ use Neili\Settings;
 $settings = (new Settings())
     ->setAccessToken('YOUR_BOT_TOKEN')
     ->setMultiProcess(true)
+    ->setMultiProcessMaxWorkers(100)
     ->setPhpBinary('/usr/bin/php');
 
 $client = new Client($settings);
@@ -324,7 +326,7 @@ if (isset($update['message']['chat']['id'], $update['message']['text'])) {
 $client->flush();
 ```
 
-The child process re-enters the same script, reads the base64-encoded update from `$argv[1]` in `handleUpdate()`, and continues with the processing code below it. Worker stdout and stderr are redirected to `/dev/null`; configure application error reporting explicitly. This mode does not provide a durable queue or worker supervision.
+The child process re-enters the same script, reads the base64-encoded update from `$argv[1]` in `handleUpdate()`, and continues with the processing code below it. Worker stdout and stderr are redirected to `/dev/null`; configure application error reporting explicitly. Use `setMultiProcessMaxWorkers()` to configure the limit (default: 100). All processes for the same script and bot token must share the temporary directory and limit. Slots are released automatically when a worker exits, including after a crash. This is a per-host limit, not a distributed limit. The application manages update processing and failures. This mode does not provide a durable queue or worker supervision.
 
 ### Fast-Ack Webhook
 

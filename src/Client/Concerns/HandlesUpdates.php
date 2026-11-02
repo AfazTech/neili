@@ -61,13 +61,28 @@ trait HandlesUpdates
                 $executedFile = (string) ($_SERVER['SCRIPT_FILENAME'] ?? '');
                 $phpBinary = $this->settings->getPhpBinary();
 
-                $command = sprintf(
-                    '%s %s %s > /dev/null 2>&1 &',
-                    escapeshellarg($phpBinary),
-                    escapeshellarg($executedFile),
-                    escapeshellarg($payload),
-                );
-                exec($command);
+                $slot = $this->acquireWorkerSlot($executedFile);
+                try {
+                    // Descriptor 3 transfers the slot lock to the detached child.
+                    // Closing our copy must not explicitly unlock the shared lock.
+                    $command = sprintf('%s %s %s > /dev/null 2>&1 &',
+                        escapeshellarg($phpBinary), escapeshellarg($executedFile), escapeshellarg($payload));
+                    $process = proc_open($command, [
+                        0 => ['file', '/dev/null', 'r'],
+                        1 => ['file', '/dev/null', 'a'],
+                        2 => ['file', '/dev/null', 'a'],
+                        3 => $slot,
+                    ], $pipes);
+                    if (!is_resource($process)) {
+                        throw new \RuntimeException('Cannot launch worker');
+                    }
+                    proc_close($process); // Waits only for the launching shell, not the worker.
+                } catch (\Throwable $error) {
+                    http_response_code(503);
+                    throw $error;
+                } finally {
+                    fclose($slot);
+                }
                 http_response_code(200);
                 exit;
             }
@@ -90,6 +105,26 @@ trait HandlesUpdates
             throw new \UnexpectedValueException('Invalid base64 in CLI payload');
         }
         return $this->decodeUpdate($payload);
+    }
+
+    /** Reserve capacity before spawning; the OS releases it when the child exits. */
+    private function acquireWorkerSlot(string $script)
+    {
+        $scope = hash('sha256', $script . ':' . $this->settings->getAccessToken());
+        for ($slot = 0; $slot < $this->settings->getMultiProcessMaxWorkers(); ++$slot) {
+            $handle = @fopen(sys_get_temp_dir() . '/neili_slot_' . $scope . '_' . $slot, 'c');
+            if ($handle === false) {
+                http_response_code(503);
+                throw new \RuntimeException('Cannot open worker capacity lock');
+            }
+            if (flock($handle, LOCK_EX | LOCK_NB)) {
+                return $handle;
+            }
+            fclose($handle);
+        }
+        http_response_code(503);
+        header('Retry-After: 1');
+        throw new \RuntimeException('Multi-process worker capacity exhausted');
     }
 
     /** Validate the common update envelope without rejecting future update types. */
