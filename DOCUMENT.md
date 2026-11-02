@@ -483,13 +483,15 @@ KeyboardBuilder::removeKeyboard(true);
 
 ## Media
 
-Wrap local files in a `Media` object. The constructor validates existence and resolves the real path.
+**Migration from v3:** File validation now happens during upload. Catch upload failures around `->await()` or `flush()`, rather than relying on `new Media()` to reject missing files. `filePath` remains absolute but is no longer canonicalized: symlinks and dot segments are preserved, and multipart filenames use the supplied path's basename. Empty paths and paths containing null bytes are rejected immediately with `InvalidArgumentException`.
+
+Wrap local files in a `Media` object. The constructor captures an absolute path without checking the filesystem. Relative paths are anchored to the current working directory; symlinks and dot segments are preserved. File existence, type, and size are checked with Amp during upload. Missing files fail the returned Future with `PermanentException` when awaited, rather than throwing from the constructor.
 
 ```php
 use Neili\Media;
 
 $photo = new Media('/path/to/photo.jpg');
-echo $photo->filePath; // absolute real path
+echo $photo->filePath; // absolute path (not canonicalized)
 ```
 
 Pass a `Media` object to parameters whose signature accepts it. Supported methods use `multipart/form-data` and add `attach://<key>` references where needed. A string media value is sent as a Telegram file ID or remote URL; wrap local paths in `Media`. Upload bodies are streamed from disk.

@@ -9,24 +9,33 @@ use PHPUnit\Framework\TestCase;
 
 final class MediaTest extends TestCase
 {
-    public function testConstructorResolvesRealPath(): void
+    public function testConstructorDefersFilesystemValidation(): void
     {
-        $file = tempnam(sys_get_temp_dir(), 'neili_media_');
-        file_put_contents($file, 'binary');
+        $media = new Media('/path/to/definitely/not/existing/file.bin');
+        self::assertSame('/path/to/definitely/not/existing/file.bin', $media->filePath);
+    }
 
+    public function testRelativePathIsAnchoredAtConstruction(): void
+    {
+        $directory = getcwd();
+        $media = new Media('future-photo.jpg');
         try {
-            $media = new Media($file);
-            self::assertSame(realpath($file), $media->filePath);
+            chdir(sys_get_temp_dir());
+            self::assertSame($directory . DIRECTORY_SEPARATOR . 'future-photo.jpg', $media->filePath);
         } finally {
-            @unlink($file);
+            chdir($directory);
         }
     }
 
-    public function testConstructorThrowsOnMissingFile(): void
+    public function testNullBytePathIsRejected(): void
     {
-        $this->expectException(\RuntimeException::class);
-        $this->expectExceptionMessage('File not found');
+        $this->expectException(\InvalidArgumentException::class);
+        new Media("photo\0.jpg");
+    }
 
-        new Media('/path/to/definitely/not/existing/file.bin');
+    public function testEmptyPathIsRejected(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        new Media('');
     }
 }

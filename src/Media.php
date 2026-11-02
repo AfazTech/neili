@@ -6,24 +6,27 @@ namespace Neili;
 
 class Media
 {
-    /**
-     * Absolute path to the media file
-     * @var string
-     */
+    /** Absolute local path; existence is checked asynchronously during upload. */
     public string $filePath;
 
-    /**
-     * Media constructor
-     * Validates the file exists and resolves absolute path
-     *
-     * @param string $filePath Relative or absolute path to the file
-     * @throws \RuntimeException if the file does not exist
-     */
+    /** Capture relative paths now without performing filesystem metadata I/O. */
     public function __construct(string $filePath)
     {
-        if (!file_exists($filePath)) {
-            throw new \RuntimeException("File not found: $filePath");
+        if ($filePath === '' || str_contains($filePath, "\0")) {
+            throw new \InvalidArgumentException('Media path must be non-empty and contain no null bytes');
         }
-        $this->filePath = realpath($filePath);
+
+        $absolute = str_starts_with($filePath, '/')
+            || (DIRECTORY_SEPARATOR === '\\' && (str_starts_with($filePath, '\\')
+                || preg_match('/^[A-Za-z]:[\\\\\/]/', $filePath) === 1));
+        if (!$absolute) {
+            $directory = getcwd();
+            if ($directory === false) {
+                throw new \RuntimeException('Cannot resolve current working directory');
+            }
+            $filePath = $directory . DIRECTORY_SEPARATOR . $filePath;
+        }
+        // Preserve symlinks and dot segments; the filesystem resolves them on open.
+        $this->filePath = $filePath;
     }
 }

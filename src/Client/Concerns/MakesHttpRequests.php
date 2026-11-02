@@ -262,17 +262,15 @@ trait MakesHttpRequests
                 }
 
                 foreach ($files as $key => $filePath) {
-                    $realPath = realpath($filePath);
-                    if (!$realPath) {
+                    $status = \Amp\File\getStatus($filePath);
+                    if ($status === null) {
                         throw new PermanentException("File not found: $filePath");
                     }
-
-                    $size = @filesize($realPath);
-                    if ($size === false) {
-                        throw new PermanentException("Cannot stat file: $realPath");
+                    if (($status['mode'] & 0170000) !== 0100000) {
+                        throw new PermanentException("Not a regular file: $filePath");
                     }
-
-                    $filename = basename($realPath);
+                    $size = $status['size'];
+                    $filename = basename($filePath);
                     $safeKey = str_replace(['"', "\r", "\n"], '', (string) $key);
                     $safeFilename = str_replace(['"', "\r", "\n"], '', $filename);
 
@@ -283,7 +281,7 @@ trait MakesHttpRequests
 
                     $parts[] = [
                         'header' => $header,
-                        'path'   => $realPath,
+                        'path'   => $filePath,
                         'size'   => $size,
                         'footer' => "\r\n",
                     ];
