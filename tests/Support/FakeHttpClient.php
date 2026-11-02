@@ -33,13 +33,18 @@ final class FakeHttpClient
     /** @var array<int, array{request: Request, body: string}> */
     private array $captured = [];
 
-    /** @var array<int, array{0: int, 1: string}|\Throwable> */
+    /** @var array<int, array{0: int, 1: string|ReadableStream}|\Throwable> */
     private array $responses = [];
 
     /**
      * Queue a raw HTTP response.
      */
     public function pushResponse(int $status, string $body): void
+    {
+        $this->responses[] = [$status, $body];
+    }
+
+    public function pushStreamResponse(int $status, ReadableStream $body): void
     {
         $this->responses[] = [$status, $body];
     }
@@ -134,7 +139,7 @@ final class FakeHttpClient
             $status,
             null,
             [],
-            new ReadableBuffer($body),
+            is_string($body) ? new ReadableBuffer($body) : $body,
             $request,
         );
     }

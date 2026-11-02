@@ -24,7 +24,8 @@ class Poller
     /** @var array<int, Future> Update handlers currently in flight. */
     private array $activeHandlers = [];
     private int $nextHandlerId = 0;
-    private bool $draining = false;
+    /** True until start() returns, including startup, stop requests, and draining. */
+    private bool $activeRun = false;
     private ?LocalSemaphore $semaphore = null; // concurrency control semaphore
 
     /**
@@ -147,7 +148,18 @@ class Poller
     // Start polling loop with optional discarding of old updates
     public function start(bool $discardOldUpdates = true): void
     {
-        if ($this->running || $this->draining) throw new \RuntimeException('Poller already running');
+        if ($this->activeRun) throw new \RuntimeException('Poller already running');
+
+        $this->activeRun = true;
+        try {
+            $this->runPolling($discardOldUpdates);
+        } finally {
+            $this->activeRun = false;
+        }
+    }
+
+    private function runPolling(bool $discardOldUpdates): void
+    {
 
         // Ensure background execution and unlimited script runtime
         if (function_exists('ignore_user_abort')) ignore_user_abort(true);
@@ -319,12 +331,7 @@ class Poller
             $this->mainFuture->await();
         } finally {
             $this->running = false;
-            $this->draining = true;
-            try {
-                \Amp\Future\awaitAll($this->activeHandlers);
-            } finally {
-                $this->draining = false;
-            }
+            \Amp\Future\awaitAll($this->activeHandlers);
         }
     }
 

@@ -109,7 +109,7 @@ trait MakesHttpRequests
                 && is_string($normalized[$field])
                 && str_starts_with($normalized[$field], 'attach://')
             ) {
-                $originalKey = substr($normalized[$field], 8);
+                $originalKey = substr($normalized[$field], strlen('attach://'));
                 $normalized[$field] = 'attach://' . $prefix . '_' . $originalKey;
             }
         }

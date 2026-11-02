@@ -134,4 +134,49 @@ final class SettingsTest extends TestCase
             );
         }
     }
+    public function testFastAckCannotBeEnabledAfterMultiProcess(): void
+    {
+        $settings = (new Settings())->setMultiProcess(true);
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Cannot enable fast-ack');
+        $settings->setFastAck(true);
+    }
+
+    public function testMultiProcessCannotBeEnabledAfterFastAck(): void
+    {
+        $settings = (new Settings())->setFastAck(true);
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Cannot enable multi-process');
+        $settings->setMultiProcess(true);
+    }
+
+    public function testDeliveryModesCanBeSwitchedAfterDisablingPreviousMode(): void
+    {
+        $settings = (new Settings())->setFastAck(true)->setFastAck(false)->setMultiProcess(true);
+        self::assertTrue($settings->isMultiProcess());
+        self::assertFalse($settings->isFastAck());
+        $settings->setMultiProcess(false)->setFastAck(true);
+        self::assertFalse($settings->isMultiProcess());
+        self::assertTrue($settings->isFastAck());
+    }
+
+    public function testMultiProcessRejectsDisabledProcOpen(): void
+    {
+        if (!function_exists('proc_open')) {
+            self::markTestSkipped('Subprocess execution is unavailable');
+        }
+        $autoload = var_export(dirname(__DIR__, 2) . '/vendor/autoload.php', true);
+        $code = 'require ' . $autoload . '; try { (new \\Neili\\Settings())->setMultiProcess(true); exit(1); }'
+            . ' catch (\\RuntimeException $e) { echo $e->getMessage(); }';
+        $process = proc_open([PHP_BINARY, '-d', 'disable_functions=proc_open', '-r', $code],
+            [0 => ['file', '/dev/null', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes);
+        self::assertIsResource($process);
+        $output = stream_get_contents($pipes[1]);
+        $errors = stream_get_contents($pipes[2]);
+        fclose($pipes[1]);
+        fclose($pipes[2]);
+        self::assertSame(0, proc_close($process), $errors);
+        self::assertSame('Cannot enable multi-process: proc_open disabled', $output);
+    }
+
 }

@@ -133,4 +133,80 @@ final class FlushTest extends TestCase
         self::assertCount(0, $b->getRequests());
         $second->flush();
     }
+    public function testConcurrentFlushIsRejectedWithoutBreakingOriginalFlush(): void
+    {
+        $entered = new \Amp\DeferredFuture();
+        $gate = new \Amp\DeferredFuture();
+        $http = new class($entered, $gate) {
+            public function __construct(private $entered, private $gate) {}
+            public function request($request): \Amp\Http\Client\Response
+            {
+                $this->entered->complete();
+                $this->gate->getFuture()->await();
+                return new \Amp\Http\Client\Response('1.1', 200, null, [],
+                    new \Amp\ByteStream\ReadableBuffer('{"ok":true,"result":true}'), $request);
+            }
+        };
+        $client = $this->client($http);
+        $request = $client->getMe();
+        $flush = \Amp\async(fn () => $client->flush());
+        try {
+            $entered->getFuture()->await(new \Amp\TimeoutCancellation(2));
+            try {
+                $client->flush();
+                self::fail('Expected concurrent flush rejection');
+            } catch (\LogicException $error) {
+                self::assertStringContainsString('already in progress', $error->getMessage());
+            }
+        } finally {
+            $gate->complete();
+            $flush->await(new \Amp\TimeoutCancellation(2));
+        }
+        self::assertTrue($request->await()['result']);
+        $client->flush();
+    }
+
+    public function testNestedFlushIsRejectedAndOuterFlushCompletes(): void
+    {
+        $http = new class {
+            public Client $client;
+            public ?\Throwable $nestedError = null;
+            public function request($request): \Amp\Http\Client\Response
+            {
+                try {
+                    $this->client->flush();
+                } catch (\LogicException $error) {
+                    $this->nestedError = $error;
+                }
+                return new \Amp\Http\Client\Response('1.1', 200, null, [],
+                    new \Amp\ByteStream\ReadableBuffer('{"ok":true,"result":true}'), $request);
+            }
+        };
+        $client = $http->client = $this->client($http);
+        $request = $client->getMe();
+        $client->flush();
+        self::assertInstanceOf(\LogicException::class, $http->nestedError);
+        self::assertTrue($request->await()['result']);
+        $client->flush();
+    }
+
+    public function testClientAcceptsNewRequestsAfterFailedFlush(): void
+    {
+        $http = new FakeHttpClient();
+        $http->pushThrow(new \RuntimeException('first request failed'));
+        $http->pushJsonResponse(['ok' => true, 'result' => 'recovered']);
+        $client = $this->client($http);
+        $client->getMe();
+        try {
+            $client->flush();
+            self::fail('Expected failed flush');
+        } catch (CompositeException $error) {
+            self::assertCount(1, $error->getReasons());
+        }
+        $next = $client->getMe();
+        $client->flush();
+        self::assertSame('recovered', $next->await()['result']);
+        self::assertCount(2, $http->getRequests());
+    }
+
 }
