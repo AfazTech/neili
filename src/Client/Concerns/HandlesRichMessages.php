@@ -37,7 +37,7 @@ trait HandlesRichMessages
                     && is_string($normalized[$field])
                     && str_starts_with($normalized[$field], 'attach://')
                 ) {
-                    $originalKey = substr($normalized[$field], 8);
+                    $originalKey = substr($normalized[$field], strlen('attach://'));
                     $normalized[$field] = 'attach://rich_' . $index . '_' . $originalKey;
                 }
             }
