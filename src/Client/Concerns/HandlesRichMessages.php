@@ -185,6 +185,6 @@ trait HandlesRichMessages
         if ($keepOnStop !== null) {
             $payload['keep_on_stop'] = $keepOnStop;
         }
-        return $this->request('sendRichMessageDraft', $payload);
+        return $this->request('sendMessageDraft', $payload);
     }
 }
