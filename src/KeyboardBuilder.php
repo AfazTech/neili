@@ -95,6 +95,7 @@ class KeyboardBuilder
      */
     public function inlineRow(array $buttons): self
     {
+        $this->assertCanUseInline();
         $row = [];
         foreach ($buttons as $text => $callbackData) {
             $row[] = ['text' => $text, 'callback_data' => $callbackData];
@@ -121,6 +122,7 @@ class KeyboardBuilder
      */
     public function inlineUrlRow(array $buttons): self
     {
+        $this->assertCanUseInline();
         $row = [];
         foreach ($buttons as $text => $url) {
             $row[] = ['text' => $text, 'url' => $url];
@@ -141,6 +143,7 @@ class KeyboardBuilder
      */
     public function inlineButtonRow(array $buttons): self
     {
+        $this->assertCanUseInline();
         $this->inlineRows[] = array_values($buttons);
         $this->isInline = true;
         return $this;
@@ -153,6 +156,7 @@ class KeyboardBuilder
      */
     public function inlineButton(array $button): self
     {
+        $this->assertCanUseInline();
         $this->inlineRows[] = [$button];
         $this->isInline = true;
         return $this;
@@ -163,8 +167,16 @@ class KeyboardBuilder
      */
     public function inline(): self
     {
+        $this->assertCanUseInline();
         $this->isInline = true;
         return $this;
+    }
+
+    private function assertCanUseInline(): void
+    {
+        if ($this->rows !== []) {
+            throw new \RuntimeException('Cannot mix inline rows with a reply keyboard. Use reply methods or clear() first.');
+        }
     }
 
     /**
