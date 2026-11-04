@@ -113,6 +113,8 @@ class Settings
         'removed_chat_boost',
         'managed_bot',
         'guest_message',
+        'subscription',
+        'stopped_message_generation',
     ];
 
     /**
