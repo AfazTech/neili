@@ -26,7 +26,7 @@ final class PollerLifecycleTest extends TestCase
             public function getUpdates(?int $offset = null, ?int $limit = null, ?int $timeout = null,
                 ?array $allowedUpdates = null, ?array $extraParams = null): Future
             {
-                $this->calls[] = compact('offset', 'timeout', 'allowedUpdates');
+                $this->calls[] = compact('offset', 'limit', 'timeout', 'allowedUpdates');
                 if ($this->onPoll !== null) ($this->onPoll)();
                 if ($this->responses === []) {
                     $this->poller->stop();
@@ -71,7 +71,8 @@ final class PollerLifecycleTest extends TestCase
         $seen = [];
         $poller->onMessage(function ($update) use (&$seen): void { $seen[] = $update['update_id']; });
         $poller->start(true);
-        self::assertNull($client->calls[0]['offset']);
+        self::assertSame(-1, $client->calls[0]['offset']);
+        self::assertSame(1, $client->calls[0]['limit']);
         self::assertSame(0, $client->calls[0]['timeout']);
         self::assertSame([9], $seen);
         self::assertSame([9, 10], array_column(array_slice($client->calls, 1), 'offset'));

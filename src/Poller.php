@@ -183,7 +183,8 @@ class Poller
         $backoffBase = $settings->getPollerBackoffBase();
         $maxBackoff = $settings->getPollerMaxBackoff();
 
-        // Optionally discard old updates to start fresh.
+        // Fetch only the queue's final update; a negative offset forgets all
+        // earlier updates, including backlogs larger than Telegram's batch limit.
         // IMPORTANT: use a short-poll fetch (timeout=0) here, not the long-poll $timeout,
         // otherwise a real incoming message arriving right at startup could be consumed
         // by this throwaway request and silently lost.
@@ -195,7 +196,7 @@ class Poller
         //     via onError() and the main loop is allowed to proceed.
         if ($discardOldUpdates) {
             try {
-                $latest = $this->client->getUpdates(null, null, 0)->await();
+                $latest = $this->client->getUpdates(-1, 1, 0, $settings->getPollerAllowedUpdates())->await();
                 $result = $latest['result'] ?? [];
                 if ($result) $this->offset = (int) end($result)['update_id'] + 1;
             } catch (PermanentException $e) {

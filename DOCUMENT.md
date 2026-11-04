@@ -384,7 +384,7 @@ $poller = new Poller($client);
 
 | Method | Signature | Description |
 | --- | --- | --- |
-| `start` | `start(bool $discardOldUpdates = true): void` | Blocks; runs the loop. When `$discardOldUpdates` is true, a short-poll (`timeout=0`) fetch is issued first |
+| `start` | `start(bool $discardOldUpdates = true): void` | Blocks; runs the loop. When `$discardOldUpdates` is true, a short-poll (`offset=-1`, `limit=1`, `timeout=0`) fetch discards the existing backlog before processing new updates |
 | `stop` | `stop(): void` | Stops accepting new updates; `start()` waits for already started handlers before returning |
 | `isRunning` | `isRunning(): bool` | `true` while the loop is active |
 
